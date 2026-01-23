@@ -9,9 +9,9 @@ import AdminLockScreen from './components/AdminLockScreen';
 import ManualEntryCard from './components/ManualEntryCard';
 import CameraCard from './components/CameraCard';
 import VisitorList from './components/VisitorList';
+import Dashboard from './components/Dashboard';
 
 function App() {
-  
   // todo: 관리자 잠금 모드 임시 비활성화. 개발 완료 후 활성화 하기.
   const [isAdminLocked, setIsAdminLocked] = useState(false);
 
@@ -22,14 +22,19 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [lastCount, setLastCount] = useState(0);
+  const [showDashboard, setShowDashboard] = useState(false);
 
-  const [manualGender, setManualGender] = useState('male');   
+  const [manualGender, setManualGender] = useState('male');
   const [manualGroup, setManualGroup] = useState('청년');
+
+  // 로고 클릭 추적 (3회 클릭으로 대시보드 열기)
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const logoClickTimeoutRef = useRef(null);
 
   const isMobile = useIsMobile();
   const styles = getStyles(isMobile);
 
-  useEffect(() => {   
+  useEffect(() => {
     if (isAdminLocked) return;
 
     const loadModels = async () => {
@@ -41,13 +46,25 @@ function App() {
           faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
         ]);
         setIsModelLoaded(true);
-        startVideo();
+        // 대시보드가 열려있지 않을 때만 비디오 시작
+        if (!showDashboard) {
+          startVideo();
+        }
       } catch (e) {
         console.error("모델 로딩 실패:", e);
       }
     };
     loadModels();
-  }, [isAdminLocked]);
+  }, [isAdminLocked, showDashboard]);
+
+  // 대시보드 열고 닫을 때 카메라 제어
+  useEffect(() => {
+    if (showDashboard) {
+      stopVideo(); // 대시보드 열 때 카메라 정지
+    } else if (isModelLoaded) {
+      startVideo(); // 대시보드 닫을 때 카메라 재시작
+    }
+  }, [showDashboard, isModelLoaded]);
 
   const startVideo = () => {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
@@ -55,6 +72,37 @@ function App() {
         if (videoRef.current) videoRef.current.srcObject = stream;
       })
       .catch((err) => console.error("카메라 에러:", err));
+  };
+
+  // 카메라 스트림 정지
+  const stopVideo = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  // 로고 클릭 핸들러 (3회 클릭으로 대시보드 진입)
+  const handleLogoClick = () => {
+    const newClickCount = logoClickCount + 1;
+    setLogoClickCount(newClickCount);
+
+    // 기존 타이머 클리어
+    if (logoClickTimeoutRef.current) {
+      clearTimeout(logoClickTimeoutRef.current);
+    }
+
+    // 3회 클릭 시 대시보드 열기
+    if (newClickCount === 3) {
+      setShowDashboard(true);
+      setLogoClickCount(0);
+    } else {
+      // 3초 이상 클릭이 없으면 카운트 초기화
+      logoClickTimeoutRef.current = setTimeout(() => {
+        setLogoClickCount(0);
+      }, 3000);
+    }
   };
 
 
@@ -104,6 +152,19 @@ function App() {
     setIsSending(true);
     const currentCount = visitors.length;
     
+    // 오늘의 누적 입장객 수 저장
+    const today = new Date().toDateString();
+    const savedCount = localStorage.getItem(`visitorCount_${today}`);
+    const totalCount = (savedCount ? parseInt(savedCount, 10) : 0) + currentCount;
+    localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
+    
+    // 오늘의 방문객 상세 데이터 저장 (그래프용)
+    const todayDataKey = `todayVisitors_${today}`;
+    const existingVisitors = localStorage.getItem(todayDataKey);
+    const allVisitors = existingVisitors ? JSON.parse(existingVisitors) : [];
+    allVisitors.push(...visitors);
+    localStorage.setItem(todayDataKey, JSON.stringify(allVisitors));
+    
     if (!GOOGLE_SCRIPT_URL) {
       alert("API URL 미설정");
       setIsSending(false);
@@ -136,10 +197,14 @@ function App() {
 
       <div style={styles.container}>
         <header style={styles.header}>
-          <img src={logoImg} alt="RAIM Logo" style={styles.logoImage} />
-          <div>
-            <h2 style={styles.title}>입장 등록</h2>
-          </div>
+          <img 
+            src={logoImg} 
+            alt="RAIM Logo" 
+            style={{...styles.logoImage, cursor: 'pointer'}} 
+            onClick={handleLogoClick}
+            title="로고를 3회 터치하여 관리자 대시보드 열기"
+          />
+          <h2 style={styles.title}>입장 등록</h2>
         </header>
         
         <div style={styles.topRow}>
@@ -175,6 +240,14 @@ function App() {
           {isSending ? "전송 중..." : `등록 완료 (${visitors.length}명)`}
         </button>
       </div>
+      
+      {showDashboard && (
+        <Dashboard 
+          onClose={() => setShowDashboard(false)}
+          onSave={() => setShowDashboard(false)}
+        />
+      )}
+      
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
