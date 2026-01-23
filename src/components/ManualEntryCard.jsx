@@ -5,7 +5,7 @@ import { ageGroups, RAIM_COLORS } from '../constants';
 const getStyles = (isMobile) => ({
   manualCard: { 
     flex: 1, border: `1px solid ${RAIM_COLORS.BG}`, borderRadius: '16px', 
-    padding: isMobile ? '10px' : '15px', background: '#FAFAFA', 
+    padding: isMobile ? '8px' : '12px', background: '#FAFAFA', 
     display: 'flex', flexDirection: 'column', justifyContent: 'space-between', 
     overflow: 'hidden' 
   },
@@ -22,7 +22,7 @@ const getStyles = (isMobile) => ({
     color: RAIM_COLORS.DARK, fontWeight: '700' 
   },
   inputGroup: { 
-    marginBottom: isMobile ? '5px' : '15px', flex: 1, 
+    marginBottom: isMobile ? '8px' : '12px', flex: 1, 
     display: 'flex', flexDirection: 'column', justifyContent: 'center' 
   },
   inputLabel: { 
@@ -30,7 +30,7 @@ const getStyles = (isMobile) => ({
     fontWeight: '700', color: RAIM_COLORS.MUTED 
   },
   toggleButton: { 
-    flex: 1, padding: isMobile ? '8px 0' : '12px', 
+    flex: 1, padding: isMobile ? '10px 0' : '15px', 
     fontSize: isMobile ? '12px' : '14px', 
     border: `1px solid ${RAIM_COLORS.MUTED}44`, borderRadius: '8px', 
     cursor: 'pointer', fontWeight: '600', backgroundColor: 'white', 
@@ -47,7 +47,7 @@ const getStyles = (isMobile) => ({
     gap: isMobile ? '4px' : '8px' 
   },
   ageButton: { 
-    padding: isMobile ? '6px 0' : '10px', 
+    padding: isMobile ? '4px 0' : '8px', 
     border: `1px solid ${RAIM_COLORS.MUTED}44`, borderRadius: '8px', 
     cursor: 'pointer', fontSize: isMobile ? '11px' : '13px', 
     fontWeight: '600', backgroundColor: 'white', color: RAIM_COLORS.MUTED, 
@@ -60,11 +60,11 @@ const getStyles = (isMobile) => ({
   },
   addButton: { 
     width: '100%', display:'flex', alignItems:'center', 
-    justifyContent:'center', gap:'4px', padding: isMobile ? '10px' : '14px', 
+    justifyContent:'center', gap:'4px', padding: isMobile ? '8px' : '12px', 
     fontSize: isMobile ? '14px' : '16px', fontWeight: 'bold', 
     backgroundColor: 'white', color: RAIM_COLORS.MEDIUM, 
     border: `2px solid ${RAIM_COLORS.MEDIUM}`, borderRadius: '12px', 
-    cursor: 'pointer' 
+    cursor: 'pointer', flexShrink: 0 
   }
 });
 
