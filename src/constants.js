@@ -21,3 +21,10 @@ export const ageGroups = [
   { label: "중년", sub: "40~49세" },
   { label: "장년", sub: "50세~" }
 ];
+
+export const roomLocations = [
+  "Room A",
+  "Room B",
+  "Room C",
+  "Room D"
+];

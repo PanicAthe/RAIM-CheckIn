@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { LockKeyhole, KeyRound } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LockKeyhole, KeyRound, MapPin } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ADMIN_PIN, RAIM_COLORS } from '../constants';
+import { ADMIN_PIN, RAIM_COLORS, roomLocations } from '../constants';
 import logoImg from '../assets/logo.png';
 
 const getLockStyles = (isMobile) => ({
@@ -56,18 +56,49 @@ const getLockStyles = (isMobile) => ({
   },
   footer: { 
     marginTop: '30px' 
+  },
+  selectWrapper: {
+    position: 'relative',
+    marginBottom: '15px'
+  },
+  select: {
+    width: '100%',
+    padding: '15px 15px 15px 45px',
+    fontSize: '16px',
+    border: '2px solid #E5E7EB',
+    borderRadius: '12px',
+    outline: 'none',
+    transition: 'border 0.2s',
+    boxSizing: 'border-box',
+    backgroundColor: 'white',
+    cursor: 'pointer'
   }
 });
 
 export default function AdminLockScreen({ onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState("");
   const isMobile = useIsMobile();
   const styles = getLockStyles(isMobile);
 
+  useEffect(() => {
+    const savedRoom = localStorage.getItem('room_id');
+    if (savedRoom) {
+      setSelectedRoom(savedRoom);
+    }
+  }, []);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    if (!selectedRoom) {
+      alert("관람실을 선택해주세요.");
+      return;
+    }
+    
     if (pin === ADMIN_PIN) {
+      localStorage.setItem('room_id', selectedRoom);
       onUnlock();
     } else {
       setError(true);
@@ -82,9 +113,22 @@ export default function AdminLockScreen({ onUnlock }) {
           <LockKeyhole size={isMobile ? 30 : 40} color={RAIM_COLORS.DARK} />
         </div>
         <h2 style={styles.title}>관리자 잠금</h2>
-        <p style={styles.desc}>비밀번호를 입력하세요.</p>
+        <p style={styles.desc}>관람실을 선택하고 비밀번호를 입력하세요.</p>
         
         <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={styles.selectWrapper}>
+            <MapPin size={20} color={RAIM_COLORS.MUTED} style={{position:'absolute', left:'15px', top:'15px', zIndex: 1}} />
+            <select 
+              value={selectedRoom}
+              onChange={(e) => setSelectedRoom(e.target.value)}
+              style={styles.select}
+            >
+              <option value="">관람실 선택</option>
+              {roomLocations.map(room => (
+                <option key={room} value={room}>{room}</option>
+              ))}
+            </select>
+          </div>
           <div style={styles.inputWrapper}>
             <KeyRound size={20} color={RAIM_COLORS.MUTED} style={{position:'absolute', left:'15px'}} />
             <input 

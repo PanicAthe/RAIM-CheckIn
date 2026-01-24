@@ -13,8 +13,8 @@ import VisitorList from './components/VisitorList';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  // todo: 관리자 잠금 모드 임시 비활성화. 개발 완료 후 활성화 하기.
   const [isAdminLocked, setIsAdminLocked] = useState(false);
+  const [showRoomSetup, setShowRoomSetup] = useState(false);
 
   const videoRef = useRef();
   const [isModelLoaded, setIsModelLoaded] = useState(false);
@@ -36,7 +36,14 @@ function App() {
   const styles = getStyles(isMobile);
 
   useEffect(() => {
-    if (isAdminLocked) return;
+    const roomId = localStorage.getItem('room_id');
+    if (!roomId) {
+      setShowRoomSetup(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdminLocked || showRoomSetup) return;
 
     const loadModels = async () => {
       const MODEL_URL = '/models';
@@ -56,7 +63,7 @@ function App() {
       }
     };
     loadModels();
-  }, [isAdminLocked, showDashboard]);
+  }, [isAdminLocked, showDashboard, showRoomSetup]);
 
   // 대시보드 열고 닫을 때 카메라 제어
   useEffect(() => {
@@ -168,6 +175,13 @@ function App() {
 
   const submitData = async () => {
     if (visitors.length === 0) return;
+    
+    const roomId = localStorage.getItem('room_id');
+    if (!roomId) {
+      alert('관람실이 설정되지 않았습니다. 관리자 대시보드에서 설정해주세요.');
+      return;
+    }
+    
     setIsSending(true);
     const currentCount = visitors.length;
     
@@ -191,8 +205,9 @@ function App() {
       for (const visitor of formattedVisitors) {
         await addDoc(collection(db, "visitors"), {
           ...visitor,
+          location: roomId,
           timestamp: serverTimestamp(),
-          date: new Date().toISOString().split('T')[0] // YYYY-MM-DD 형식
+          date: new Date().toISOString().split('T')[0]
         });
       }
       
@@ -209,6 +224,10 @@ function App() {
 
   if (isAdminLocked) {
     return <AdminLockScreen onUnlock={() => setIsAdminLocked(false)} />;
+  }
+
+  if (showRoomSetup) {
+    return <AdminLockScreen onUnlock={() => setShowRoomSetup(false)} />;
   }
 
   return (

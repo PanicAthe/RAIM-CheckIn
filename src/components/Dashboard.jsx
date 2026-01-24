@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Settings, Users, Calendar, Save, X, Sliders, BarChart3 } from 'lucide-react';
+import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { RAIM_COLORS, ageGroups } from '../constants';
+import { RAIM_COLORS, ageGroups, roomLocations } from '../constants';
 
 const getStyles = (isMobile) => ({
   dashboardOverlay: {
@@ -230,6 +230,23 @@ const getStyles = (isMobile) => ({
     color: 'white',
     fontWeight: '600',
     fontSize: '14px'
+  },
+  selectWrapper: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  select: {
+    width: '100%',
+    padding: '15px 15px 15px 45px',
+    fontSize: '16px',
+    border: `2px solid ${RAIM_COLORS.BG}`,
+    borderRadius: '12px',
+    outline: 'none',
+    transition: 'border 0.2s',
+    boxSizing: 'border-box',
+    backgroundColor: 'white',
+    cursor: 'pointer'
   }
 });
 
@@ -239,6 +256,7 @@ export default function Dashboard({ onClose, onSave }) {
   
   const [todayCount, setTodayCount] = useState(0);
   const [ageCorrection, setAgeCorrection] = useState(4);
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [visitorStats, setVisitorStats] = useState({
     ageGroups: {},
     gender: { male: 0, female: 0 }
@@ -297,16 +315,30 @@ export default function Dashboard({ onClose, onSave }) {
       setAgeCorrection(parseInt(savedCorrection, 10));
     }
 
+    // 저장된 관람실 정보 로드
+    const savedRoom = localStorage.getItem('room_id');
+    if (savedRoom) {
+      setSelectedRoom(savedRoom);
+    }
+
     // 방문객 데이터 분석
     analyzeVisitorData();
   }, []);
 
   const handleSave = () => {
+    if (!selectedRoom) {
+      alert("관람실을 선택해주세요.");
+      return;
+    }
+    
     // 나이 보정값 저장
     localStorage.setItem('ageCorrection', ageCorrection.toString());
     
+    // 관람실 정보 저장
+    localStorage.setItem('room_id', selectedRoom);
+    
     onSave();
-    alert('나이 보정값이 저장되었습니다.');
+    alert('설정이 저장되었습니다.');
   };
 
   const getSliderStyle = () => ({
@@ -518,8 +550,28 @@ export default function Dashboard({ onClose, onSave }) {
             <div style={styles.iconWrapper}>
               <Sliders size={20} />
             </div>
-            나이 보정 설정
+            설정
           </h3>
+          
+          {/* 관람실 선택 */}
+          <div style={styles.formGroup}>
+            <label style={styles.formLabel}>관람실 선택</label>
+            <div style={styles.selectWrapper}>
+              <MapPin size={20} color={RAIM_COLORS.MUTED} style={{position:'absolute', left:'15px', zIndex: 1}} />
+              <select 
+                value={selectedRoom}
+                onChange={(e) => setSelectedRoom(e.target.value)}
+                style={styles.select}
+              >
+                <option value="">관람실 선택</option>
+                {roomLocations.map(room => (
+                  <option key={room} value={room}>{room}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          {/* 나이 보정값 */}
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>나이 보정값 ({ageCorrection > 0 ? '+' : ''}{ageCorrection}세)</label>
             <div style={styles.sliderContainer}>
@@ -549,7 +601,7 @@ export default function Dashboard({ onClose, onSave }) {
           onClick={handleSave}
         >
           <Save size={18} />
-          나이 보정값 저장
+          설정 저장
         </button>
       </div>
     </div>
