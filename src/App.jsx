@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import logoImg from './assets/logo.png';
 import { useIsMobile } from './hooks/useIsMobile';
-import { GOOGLE_SCRIPT_URL, RAIM_COLORS } from './constants';
+import { RAIM_COLORS } from './constants';
 import { convertToGroup } from './utils/ageConverter';
+import { db, collection, addDoc, serverTimestamp } from './firebase';
 import SuccessModal from './components/SuccessModal';
 import AdminLockScreen from './components/AdminLockScreen';
 import ManualEntryCard from './components/ManualEntryCard';
@@ -165,7 +166,7 @@ function App() {
     }));
   };
 
-  const submitData = () => {
+  const submitData = async () => {
     if (visitors.length === 0) return;
     setIsSending(true);
     const currentCount = visitors.length;
@@ -183,28 +184,27 @@ function App() {
     allVisitors.push(...visitors);
     localStorage.setItem(todayDataKey, JSON.stringify(allVisitors));
     
-    if (!GOOGLE_SCRIPT_URL) {
-      alert("API URL 미설정");
-      setIsSending(false);
-      return;
-    }
-
-    const formattedVisitors = formatVisitorData(visitors);
-
-    fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ visitors: formattedVisitors })
-    }).then(() => {
+    try {
+      const formattedVisitors = formatVisitorData(visitors);
+      
+      // Firebase에 데이터 저장
+      for (const visitor of formattedVisitors) {
+        await addDoc(collection(db, "visitors"), {
+          ...visitor,
+          timestamp: serverTimestamp(),
+          date: new Date().toISOString().split('T')[0] // YYYY-MM-DD 형식
+        });
+      }
+      
       setLastCount(currentCount);
       setShowModal(true);
-      setVisitors([]); 
+      setVisitors([]);
+    } catch (error) {
+      console.error("Firebase 전송 실패:", error);
+      alert("데이터 전송 실패. 인터넷 연결을 확인해주세요.");
+    } finally {
       setIsSending(false);
-    }).catch(() => {
-        alert("전송 실패. 인터넷 연결을 확인해주세요.");
-        setIsSending(false);
-    });
+    }
   };
 
   if (isAdminLocked) {

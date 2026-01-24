@@ -1,4 +1,3 @@
-export const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL;
 export const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || "0000";
 
 export const RAIM_COLORS = {
