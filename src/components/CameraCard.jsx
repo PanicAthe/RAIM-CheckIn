@@ -17,7 +17,7 @@ const getStyles = (device) => {
       display: 'flex', alignItems: 'center', gap: '8px',
       backgroundColor: 'rgba(0, 0, 0, 0.6)', color: 'white',
       padding: pick({ mobile: '8px 14px', tabletA9: '11px 20px', desktop: '12px 22px' }), borderRadius: '24px',
-      fontSize: pick({ mobile: '16px', tabletA9: '19px', desktop: '20px' }), fontWeight: '500', zIndex: 10,
+      fontSize: pick({ mobile: '16px', tabletA9: '27px', desktop: '28px' }), fontWeight: '500', zIndex: 10,
       backdropFilter: 'blur(4px)', whiteSpace: 'nowrap', pointerEvents: 'none'
     },
     video: { 
@@ -61,7 +61,7 @@ export default function CameraCard({
   return (
     <div style={styles.cameraCard}>
       <div style={styles.privacyBadge}>
-        <ShieldCheck size={28} strokeWidth={2.5} />
+        <ShieldCheck size={30} strokeWidth={2.5} />
         <span>이미지는 저장되지 않습니다</span>
       </div>
 
