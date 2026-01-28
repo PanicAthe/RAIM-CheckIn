@@ -18,6 +18,7 @@ function App() {
   const [showRoomSetup, setShowRoomSetup] = useState(false);
 
   const videoRef = useRef();
+  const canvasRef = useRef(null); // 리사이징용 캔버스
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [isSending, setIsSending] = useState(false);
@@ -54,8 +55,9 @@ function App() {
       const MODEL_URL = '/models';
       try {
         await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), // 경량 모델 추가
           faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL), // 경량 랜드마크
           faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
         ]);
         setIsModelLoaded(true);
@@ -89,7 +91,13 @@ function App() {
   }, [isAIMode, isModelLoaded, showDashboard]);
 
   const startVideo = () => {
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'user',
+        width: { ideal: 640 }, // 해상도 제한으로 처리 속도 향상
+        height: { ideal: 480 }
+      } 
+    })
       .then((stream) => { 
         if (videoRef.current) videoRef.current.srcObject = stream;
       })
@@ -104,6 +112,16 @@ function App() {
       videoRef.current.srcObject = null;
     }
   };
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      stopVideo();
+      if (canvasRef.current) {
+        canvasRef.current = null;
+      }
+    };
+  }, []);
 
   // 로고 클릭 핸들러 (3회 클릭으로 대시보드 진입)
   const handleLogoClick = () => {
@@ -132,13 +150,38 @@ function App() {
     if (!videoRef.current || !isModelLoaded || isScanning) return;
     setIsScanning(true);
 
+    let canvas = null;
     try {
       // 저장된 나이 보정값 가져오기
       const savedCorrection = localStorage.getItem('ageCorrection');
       const ageCorrection = savedCorrection ? parseInt(savedCorrection, 10) : 4;
 
-      const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.SsdMobilenetv1Options())
-        .withFaceLandmarks()
+      // 비디오를 작은 캔버스로 리사이징 (처리 속도 대폭 향상)
+      const maxDimension = 512; // 여러 명 감지를 위해 크기 증가
+      const video = videoRef.current;
+      const scale = Math.min(maxDimension / video.videoWidth, maxDimension / video.videoHeight);
+      const width = video.videoWidth * scale;
+      const height = video.videoHeight * scale;
+
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement('canvas');
+      }
+      canvas = canvasRef.current;
+      canvas.width = width;
+      canvas.height = height;
+      
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(video, 0, 0, width, height);
+
+      // TinyFaceDetector 사용 (더 빠름, 입력 크기 조정 가능)
+      const detections = await faceapi.detectAllFaces(
+        canvas, // 리사이즈된 캔버스 사용
+        new faceapi.TinyFaceDetectorOptions({ 
+          inputSize: 320, // 여러 명 감지를 위해 증가 (속도와 감지율 균형)
+          scoreThreshold: 0.4 // 임계값 낮춰 더 많은 얼굴 감지
+        })
+      )
+        .withFaceLandmarks(true) // true = tiny 모델 사용
         .withAgeAndGender();
 
       if (detections.length === 0) {
@@ -153,6 +196,9 @@ function App() {
         setScannedVisitors(newVisitors);
         setShowScanConfirm(true);
       }
+      
+      // 메모리 정리
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
       console.error(error);
     } finally {
