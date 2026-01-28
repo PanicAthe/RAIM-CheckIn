@@ -198,8 +198,7 @@ function App() {
         await addDoc(collection(db, "visitors"), {
           ...visitor,
           location: roomLocation,
-          timestamp: serverTimestamp(),
-          date: new Date().toISOString().split('T')[0]
+          timestamp: serverTimestamp()
         });
       }
       
@@ -300,8 +299,7 @@ function App() {
         await addDoc(collection(db, "visitors"), {
           ...visitor,
           location: roomLocation,
-          timestamp: serverTimestamp(),
-          date: new Date().toISOString().split('T')[0]
+          timestamp: serverTimestamp()
         });
       }
       
