@@ -1,0 +1,25 @@
+{
+  "name": "RAIM 입장 등록 시스템",
+  "short_name": "RAIM 입장",
+  "description": "AI 얼굴 인식 기반 관람객 입장 등록 시스템",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E8F2F7",
+  "theme_color": "#00448B",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
