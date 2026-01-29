@@ -1,4 +1,4 @@
-import { ClipboardList, User, X, Plus, Minus } from 'lucide-react';
+import { ClipboardList, User, X, Plus, Minus, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { RAIM_COLORS } from '../constants';
@@ -24,13 +24,29 @@ const getStyles = (device) => {
       display: 'flex', alignItems: 'center', gap: pick({ mobile: '8px', tabletA9: '10px', desktop: '10px' }) 
     },
     cardTitle: { 
-      margin: 0, fontSize: pick({ mobile: '22px', tabletA9: '26px', desktop: '28px' }), 
+      margin: 0, fontSize: pick({ mobile: '15px', tabletA9: '26px', desktop: '28px' }), 
       color: RAIM_COLORS.DARK, fontWeight: '700' 
     },
     countBadge: { 
       backgroundColor: RAIM_COLORS.MEDIUM, color: 'white', 
       padding: pick({ mobile: '3px 10px', tabletA9: '4px 12px', desktop: '4px 12px' }), borderRadius: '16px', fontWeight: 'bold', 
-      fontSize: pick({ mobile: '18px', tabletA9: '22px', desktop: '24px' })
+      fontSize: pick({ mobile: '15px', tabletA9: '22px', desktop: '24px' })
+    },
+    resetButton: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '6px',
+      padding: pick({ mobile: '6px 12px', tabletA9: '8px 14px', desktop: '8px 14px' }),
+      backgroundColor: '#F3F4F6',
+      border: 'none',
+      borderRadius: '10px',
+      cursor: 'pointer',
+      fontSize: pick({ mobile: '13px', tabletA9: '16px', desktop: '16px' }),
+      fontWeight: '600',
+      color: RAIM_COLORS.MUTED,
+      transition: 'all 0.2s',
+      marginRight: '10px'
     },
     listContainer: { 
       flex: 1, overflowY: 'auto', paddingRight: '6px' 
@@ -51,11 +67,11 @@ const getStyles = (device) => {
       display: 'flex', justifyContent: 'center', alignItems: 'center', 
       flexShrink: 0, backgroundColor: RAIM_COLORS.BG, 
       color: RAIM_COLORS.DARK,
-      fontSize: pick({ mobile: '16px', tabletA9: '18px', desktop: '18px' }),
+      fontSize: pick({ mobile: '15px', tabletA9: '18px', desktop: '18px' }),
       fontWeight: '700'
     },
     listItemTitle: { 
-      fontWeight: '700', fontSize: pick({ mobile: '20px', tabletA9: '24px', desktop: '26px' }), color: RAIM_COLORS.DARK, 
+      fontWeight: '700', fontSize: pick({ mobile: '15px', tabletA9: '24px', desktop: '26px' }), color: RAIM_COLORS.DARK, 
       marginBottom: '4px'
     },
     badgeContainer: { 
@@ -63,20 +79,20 @@ const getStyles = (device) => {
     },
     badgeNeutral: { 
       display:'inline-flex', alignItems:'center', justifyContent:'center', 
-      fontSize: pick({ mobile: '16px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
+      fontSize: pick({ mobile: '15px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
       backgroundColor: RAIM_COLORS.GRAY_BG, color: RAIM_COLORS.GRAY_TXT, 
       fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 
     },
     badgeAI: { 
       display:'inline-flex', alignItems:'center', justifyContent:'center', 
-      fontSize: pick({ mobile: '16px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
+      fontSize: pick({ mobile: '15px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
       backgroundColor: RAIM_COLORS.TEAL + '22', color: '#0F766E', 
       fontWeight: '700', border: `1px solid ${RAIM_COLORS.TEAL}44`, 
       whiteSpace: 'nowrap', flexShrink: 0 
     },
     badgeManual: { 
       display:'inline-flex', alignItems:'center', justifyContent:'center', 
-      fontSize: pick({ mobile: '16px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
+      fontSize: pick({ mobile: '15px', tabletA9: '20px', desktop: '22px' }), padding: '3px 8px', borderRadius: '6px', 
       backgroundColor: '#F3F4F6', color: '#4B5563', fontWeight: '700', 
       border: '1px solid #E5E7EB', whiteSpace: 'nowrap', flexShrink: 0 
     },
@@ -103,7 +119,7 @@ const getStyles = (device) => {
       border: 'none',
       borderRadius: '8px',
       cursor: 'pointer',
-      fontSize: '22px',
+      fontSize: pick({ mobile: '15px', tabletA9: '20px', desktop: '22px' }),
       fontWeight: 'bold'
     },
     quantityButtonPlus: {
@@ -115,16 +131,16 @@ const getStyles = (device) => {
       color: RAIM_COLORS.MUTED
     },
     quantityText: {
-      fontSize: '28px',
+      fontSize: pick({ mobile: '15px', tabletA9: '26px', desktop: '28px' }),
       fontWeight: '600',
       color: RAIM_COLORS.DARK,
-      minWidth: '30px',
+      minWidth: pick({ mobile: '24px', tabletA9: '28px', desktop: '30px' }),
       textAlign: 'center'
     }
   };
 };
 
-export default function VisitorList({ visitors, onRemove, onAdd }) {
+export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
   const { t } = useTranslation();
   const { device } = useIsMobile();
   const styles = getStyles(device);
@@ -192,7 +208,18 @@ export default function VisitorList({ visitors, onRemove, onAdd }) {
           <ClipboardList size={30} color={RAIM_COLORS.DARK} />
           <h3 style={styles.cardTitle}>{t('visitorList.title')}</h3>
         </div>
-        <span style={styles.countBadge}>{t('common.peopleCount', { count: visitors.length })}</span>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {visitors.length > 0 && (
+            <button 
+              onClick={onReset}
+              style={styles.resetButton}
+            >
+              <RotateCcw size={16} />
+              {t('visitorList.resetButton')}
+            </button>
+          )}
+          <span style={styles.countBadge}>{t('common.peopleCount', { count: visitors.length })}</span>
+        </div>
       </div>
       
       <div style={styles.listContainer}>
@@ -214,7 +241,7 @@ export default function VisitorList({ visitors, onRemove, onAdd }) {
                       {t(`ageGroups.${getAgeGroupKey(groupedVisitor.ageGroup)}`)}
                       {groupedVisitor.count > 1 && (
                         <span style={{ 
-                          fontSize: '22px', 
+                          fontSize: device === 'mobile' ? '12px' : device === 'tabletA9' ? '18px' : '20px', 
                           color: RAIM_COLORS.MEDIUM, 
                           fontWeight: '600',
                           marginLeft: '6px'

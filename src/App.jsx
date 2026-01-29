@@ -553,6 +553,7 @@ function App() {
             visitors={visitors}
             onRemove={removeVisitor}
             onAdd={addManualVisitor}
+            onReset={() => setVisitors([])}
           />
         </div>
 
@@ -626,11 +627,11 @@ const getStyles = (device) => {
       borderBottom: `2px solid ${RAIM_COLORS.BG}`
     },
     logoImage: { 
-      height: pick({ mobile: '60px', tabletA9: '70px', desktop: '100px' }), width: 'auto' 
+      height: pick({ mobile: '40px', tabletA9: '70px', desktop: '100px' }), width: 'auto' 
     },
     title: { 
       margin: 0, 
-      fontSize: pick({ mobile: '20px', tabletA9: '26px', desktop: '30px' }), 
+      fontSize: pick({ mobile: '15px', tabletA9: '26px', desktop: '30px' }), 
       color: RAIM_COLORS.DARK, 
       fontWeight: '800',
       textAlign: 'center',
@@ -659,7 +660,7 @@ const getStyles = (device) => {
     },
     modeSwitchButton: {
       padding: pick({ mobile: '14px', tabletA9: '19px', desktop: '20px' }),
-      fontSize: pick({ mobile: '17px', tabletA9: '20px', desktop: '21px' }),
+      fontSize: pick({ mobile: '13px', tabletA9: '20px', desktop: '21px' }),
       fontWeight: '800',
       backgroundColor: '#DC2626',
       color: 'white',

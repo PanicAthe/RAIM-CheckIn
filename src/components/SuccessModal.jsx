@@ -1,4 +1,5 @@
 import { CheckCircle2 } from 'lucide-react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RAIM_COLORS } from '../constants';
 
@@ -35,6 +36,16 @@ const modalStyles = {
 
 export default function SuccessModal({ isOpen, onClose, count }) {
   const { t } = useTranslation();
+  
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
   
   if (!isOpen) return null;
   return (

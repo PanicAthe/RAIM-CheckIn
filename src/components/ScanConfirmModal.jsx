@@ -250,18 +250,18 @@ export default function ScanConfirmModal({
 
         <div style={styles.buttonContainer}>
           <button 
-            style={styles.confirmButton}
-            onClick={onConfirm}
-          >
-            <Check size={22} />
-            {t('scanConfirm.confirmButton')}
-          </button>
-          <button 
             style={styles.editButton}
             onClick={onEdit}
           >
             <AlertCircle size={22} />
             {t('scanConfirm.cancelButton')}
+          </button>
+          <button 
+            style={styles.confirmButton}
+            onClick={onConfirm}
+          >
+            <Check size={22} />
+            {t('scanConfirm.confirmButton')}
           </button>
         </div>
       </div>

@@ -44,7 +44,8 @@
     "title": "Registration List",
     "emptyState": "No visitors registered",
     "aiTag": "AI",
-    "manualTag": "Manual"
+    "manualTag": "Manual",
+    "resetButton": "Reset"
   },
   "scanConfirm": {
     "title": "Confirm Scan Results",

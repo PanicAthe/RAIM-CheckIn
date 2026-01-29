@@ -44,13 +44,14 @@
     "title": "등록 목록",
     "emptyState": "등록된 관람객이 없습니다",
     "aiTag": "AI",
-    "manualTag": "수동"
+    "manualTag": "수동",
+    "resetButton": "초기화"
   },
   "scanConfirm": {
     "title": "스캔 결과 확인",
     "detected": "{{count}}명 인식됨",
     "editInfo": "정보가 올바르지 않다면, 수정할 수 있습니다",
-    "confirmButton": "등록",
+    "confirmButton": "확인",
     "cancelButton": "수정"
   },
   "successModal": {
