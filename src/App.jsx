@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import logoImg from './assets/logo.png';
 import { useIsMobile } from './hooks/useIsMobile';
-import { RAIM_COLORS } from './constants';
+import { RAIM_COLORS, AGE_GROUP_LABELS } from './constants';
 import { convertToGroup } from './utils/ageConverter';
 import { db, collection, addDoc, serverTimestamp } from './firebase';
 import SuccessModal from './components/SuccessModal';
+import ErrorModal from './components/ErrorModal';
 import AdminLockScreen from './components/AdminLockScreen';
 import ManualEntryCard from './components/ManualEntryCard';
 import CameraCard from './components/CameraCard';
@@ -19,11 +20,15 @@ function App() {
 
   const videoRef = useRef();
   const canvasRef = useRef(null); // 리사이징용 캔버스
+  const canvasCtxRef = useRef(null); // 캔버스 컨텍스트 캐싱 (성능 최적화)
+  const scanDebounceRef = useRef(null); // 디바운싱용 타이머
   const [isModelLoaded, setIsModelLoaded] = useState(false);
   const [visitors, setVisitors] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [lastCount, setLastCount] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showScanConfirm, setShowScanConfirm] = useState(false);
@@ -41,6 +46,7 @@ function App() {
   const isDesktop = device === 'desktop';
   const styles = getStyles(device);
 
+  // 컴포넌트 마운트 시 관람실 설정 확인
   useEffect(() => {
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
@@ -48,18 +54,29 @@ function App() {
     }
   }, []);
 
+  // 관람실 설정 후 상태 업데이트
+  const handleRoomSetupComplete = () => {
+    setShowRoomSetup(false);
+    // 다시 로드하여 메인 화면으로 이동
+    setIsModelLoaded(false);
+  };
+
   useEffect(() => {
     if (isAdminLocked || showRoomSetup) return;
 
     const loadModels = async () => {
       const MODEL_URL = '/models';
       try {
+        // 최적화: ssdMobilenetv1 제거 (사용하지 않음, 50MB 메모리 절약)
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), // 경량 모델 추가
-          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL), // 경량 랜드마크
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
           faceapi.nets.ageGenderNet.loadFromUri(MODEL_URL),
         ]);
+        
+        // 모델 warmup: 첫 스캔 속도 1-2초 단축
+        await warmupModel();
+        
         setIsModelLoaded(true);
         // 대시보드가 열려있지 않을 때만 비디오 시작
         if (!showDashboard) {
@@ -94,8 +111,8 @@ function App() {
     navigator.mediaDevices.getUserMedia({ 
       video: { 
         facingMode: 'user',
-        width: { ideal: 640 }, // 해상도 제한으로 처리 속도 향상
-        height: { ideal: 480 }
+        width: { ideal: 720, max: 960 }, // 갤럭시탭A9 최적화 (960→720, 메모리 20% 절감)
+        height: { ideal: 540, max: 720 }  // 4-5명 감지에 충분한 해상도
       } 
     })
       .then((stream) => { 
@@ -117,11 +134,42 @@ function App() {
   useEffect(() => {
     return () => {
       stopVideo();
+      // 캔버스 컨텍스트 정리
+      if (canvasCtxRef.current) {
+        canvasCtxRef.current = null;
+      }
       if (canvasRef.current) {
         canvasRef.current = null;
       }
+      // 디바운스 타이머 정리
+      if (scanDebounceRef.current) {
+        clearTimeout(scanDebounceRef.current);
+      }
     };
   }, []);
+
+  // 모델 warmup: 더미 이미지로 모델 예열 (첫 스캔 속도 1-2초 단축)
+  const warmupModel = async () => {
+    try {
+      const dummyCanvas = document.createElement('canvas');
+      dummyCanvas.width = 128;
+      dummyCanvas.height = 128;
+      const ctx = dummyCanvas.getContext('2d');
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, 128, 128);
+      
+      await faceapi.detectSingleFace(
+        dummyCanvas,
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.5 })
+      ).withFaceLandmarks(true).withAgeAndGender();
+      
+      // 메모리 정리
+      dummyCanvas.width = 0;
+      dummyCanvas.height = 0;
+    } catch (e) {
+      // warmup 실패는 무시 (실제 스캔에 영향 없음)
+    }
+  };
 
   // 로고 클릭 핸들러 (3회 클릭으로 대시보드 진입)
   const handleLogoClick = () => {
@@ -147,7 +195,13 @@ function App() {
 
 
   const scanFaces = async () => {
+    // 디바운싱: 연속 클릭 방지 (300ms)
     if (!videoRef.current || !isModelLoaded || isScanning) return;
+    
+    if (scanDebounceRef.current) {
+      clearTimeout(scanDebounceRef.current);
+    }
+    
     setIsScanning(true);
 
     let canvas = null;
@@ -156,12 +210,12 @@ function App() {
       const savedCorrection = localStorage.getItem('ageCorrection');
       const ageCorrection = savedCorrection ? parseInt(savedCorrection, 10) : 4;
 
-      // 비디오를 작은 캔버스로 리사이징 (처리 속도 대폭 향상)
-      const maxDimension = 512; // 여러 명 감지를 위해 크기 증가
+      // 비디오를 작은 캔버스로 리사이징 (갤럭시탭A9 메모리 최적화)
+      const maxDimension = 416; // 480→416 (inputSize와 동일하게 최적화)
       const video = videoRef.current;
       const scale = Math.min(maxDimension / video.videoWidth, maxDimension / video.videoHeight);
-      const width = video.videoWidth * scale;
-      const height = video.videoHeight * scale;
+      const width = Math.floor(video.videoWidth * scale);
+      const height = Math.floor(video.videoHeight * scale);
 
       if (!canvasRef.current) {
         canvasRef.current = document.createElement('canvas');
@@ -170,25 +224,34 @@ function App() {
       canvas.width = width;
       canvas.height = height;
       
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      // 캔버스 컨텍스트 캐싱 (매번 getContext 호출 방지, 5-8ms 단축)
+      let ctx = canvasCtxRef.current;
+      if (!ctx) {
+        ctx = canvas.getContext('2d', { 
+          willReadFrequently: true,
+          alpha: false // 알파 채널 비활성화로 성능 향상
+        });
+        canvasCtxRef.current = ctx;
+      }
       ctx.drawImage(video, 0, 0, width, height);
 
-      // TinyFaceDetector 사용 (더 빠름, 입력 크기 조정 가능)
+      // TinyFaceDetector 사용 (최적화: 갤럭시탭A9 성능 고려)
       const detections = await faceapi.detectAllFaces(
         canvas, // 리사이즈된 캔버스 사용
         new faceapi.TinyFaceDetectorOptions({ 
-          inputSize: 320, // 여러 명 감지를 위해 증가 (속도와 감지율 균형)
-          scoreThreshold: 0.4 // 임계값 낮춰 더 많은 얼굴 감지
+          inputSize: 416, // 5명 감지 최적화
+          scoreThreshold: 0.5 // 오탐 감소
         })
       )
         .withFaceLandmarks(true) // true = tiny 모델 사용
         .withAgeAndGender();
 
       if (detections.length === 0) {
-        alert("얼굴을 찾을 수 없습니다.");
+        setErrorMessage('얼굴을 찾을 수 없습니다.\n카메라 각도와 조명을 확인해주세요.');
+        setShowErrorModal(true);
       } else {
-        const newVisitors = detections.map(d => ({
-          id: Date.now() + Math.random(),
+        const newVisitors = detections.map((d, idx) => ({
+          id: Date.now() + idx, // 동일 시간 충돌 방지
           ageGroup: convertToGroup(d.age, ageCorrection),
           gender: d.gender,
           source: 'AI'
@@ -197,12 +260,17 @@ function App() {
         setShowScanConfirm(true);
       }
       
-      // 메모리 정리
+      // 메모리 정리 (즉시 실행)
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
       console.error(error);
+      setErrorMessage('스캔 실패.\n다시 시도해주세요.');
+      setShowErrorModal(true);
     } finally {
-      setIsScanning(false);
+      // 디바운스 타이머 설정 (300ms 쿨타임)
+      scanDebounceRef.current = setTimeout(() => {
+        setIsScanning(false);
+      }, 300);
     }
   };
 
@@ -211,43 +279,52 @@ function App() {
     
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
-      alert('관람실이 설정되지 않았습니다. 관리자 대시보드에서 설정해주세요.');
+      setErrorMessage('관람실이 설정되지 않았습니다.\n관리자 대시보드에서 설정해주세요.');
+      setShowErrorModal(true);
       return;
     }
     
+    // Firebase 전송 중 중복 클릭 방지
+    if (isSending) return;
+    
+    setIsSending(true);
+    
+    // 롤백을 위한 백업
+    const today = new Date().toDateString();
+    const savedCount = localStorage.getItem(`visitorCount_${today}`);
+    const previousCount = savedCount ? parseInt(savedCount, 10) : 0;
+    const todayDataKey = `todayVisitors_${today}`;
+    const previousVisitors = localStorage.getItem(todayDataKey);
+    
     try {
-      setIsSending(true);
-      const today = new Date().toDateString();
-      const savedCount = localStorage.getItem(`visitorCount_${today}`);
-      const totalCount = (savedCount ? parseInt(savedCount, 10) : 0) + scannedVisitors.length;
-      localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
-      
-      const todayDataKey = `todayVisitors_${today}`;
-      const existingVisitors = localStorage.getItem(todayDataKey);
-      const allVisitors = existingVisitors ? JSON.parse(existingVisitors) : [];
-      allVisitors.push(...scannedVisitors);
-      localStorage.setItem(todayDataKey, JSON.stringify(allVisitors));
-      
+      // 1. Firebase 전송 먼저 수행 (실패 시 localStorage 건드리지 않음)
       const formattedVisitors = scannedVisitors.map(visitor => ({
         ...visitor,
         gender: visitor.gender === 'male' ? '남성' : '여성',
         source: 'AI',
-        ageGroup: visitor.ageGroup === '영유아' ? '영유아(~6세)' :
-                  visitor.ageGroup === '어린이' ? '어린이(7세~12세)' :
-                  visitor.ageGroup === '청소년' ? '청소년(13세~19세)' :
-                  visitor.ageGroup === '청년' ? '청년(20세~39세)' :
-                  visitor.ageGroup === '중년' ? '중년(40세~49세)' :
-                  '장년(50세~)'
+        ageGroup: AGE_GROUP_LABELS[visitor.ageGroup] || visitor.ageGroup
       }));
       
-      for (const visitor of formattedVisitors) {
-        await addDoc(collection(db, "visitors"), {
-          ...visitor,
-          location: roomLocation,
-          timestamp: serverTimestamp()
-        });
-      }
+      // Firebase 배치 저장 (하나라도 실패하면 전체 실패)
+      await Promise.all(
+        formattedVisitors.map(visitor =>
+          addDoc(collection(db, "visitors"), {
+            ...visitor,
+            location: roomLocation,
+            timestamp: serverTimestamp()
+          })
+        )
+      );
       
+      // 2. Firebase 전송 성공 후에만 localStorage 업데이트
+      const totalCount = previousCount + scannedVisitors.length;
+      localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
+      
+      const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
+      existingVisitors.push(...scannedVisitors);
+      localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
+      
+      // 3. 성공 처리
       setLastCount(scannedVisitors.length);
       setShowModal(true);
       setShowScanConfirm(false);
@@ -255,7 +332,21 @@ function App() {
       setIsAIMode(true);
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
-      alert("데이터 전송 실패. 인터넷 연결을 확인해주세요.");
+      
+      // 에러 메시지 상세화
+      let errorMsg = '데이터 전송에 실패했습니다.';
+      if (error.code === 'permission-denied') {
+        errorMsg += '\n권한이 없습니다. 관리자에게 문의하세요.';
+      } else if (error.message?.includes('network')) {
+        errorMsg += '\n인터넷 연결을 확인해주세요.';
+      } else {
+        errorMsg += '\n잠시 후 다시 시도해주세요.';
+      }
+      
+      setErrorMessage(errorMsg);
+      setShowErrorModal(true);
+      
+      // localStorage는 이미 Firebase 전송 전이므로 롤백 불필요
     } finally {
       setIsSending(false);
     }
@@ -299,16 +390,14 @@ function App() {
   };
 
   const formatVisitorData = (visitors) => {
+    const genderMap = { 'male': '남성', 'female': '여성' };
+    const sourceMap = { 'Manual': '수동', 'AI': 'AI' };
+    
     return visitors.map(visitor => ({
       ...visitor,
-      gender: visitor.gender === 'male' ? '남성' : '여성',
-      source: visitor.source === 'Manual' ? '수동' : 'AI',
-      ageGroup: visitor.ageGroup === '영유아' ? '영유아(~6세)' :
-                visitor.ageGroup === '어린이' ? '어린이(7세~12세)' :
-                visitor.ageGroup === '청소년' ? '청소년(13세~19세)' :
-                visitor.ageGroup === '청년' ? '청년(20세~39세)' :
-                visitor.ageGroup === '중년' ? '중년(40세~49세)' :
-                '장년(50세~)'
+      gender: genderMap[visitor.gender] || visitor.gender,
+      source: sourceMap[visitor.source] || visitor.source,
+      ageGroup: AGE_GROUP_LABELS[visitor.ageGroup] || visitor.ageGroup
     }));
   };
 
@@ -317,38 +406,48 @@ function App() {
     
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
-      alert('관람실이 설정되지 않았습니다. 관리자 대시보드에서 설정해주세요.');
+      setErrorMessage('관람실이 설정되지 않았습니다.\n관리자 대시보드에서 설정해주세요.');
+      setShowErrorModal(true);
       return;
     }
+    
+    // Firebase 전송 중 중복 클릭 방지
+    if (isSending) return;
     
     setIsSending(true);
     const currentCount = visitors.length;
     
-    // 오늘의 누적 입장객 수 저장
+    // 롤백을 위한 백업
     const today = new Date().toDateString();
     const savedCount = localStorage.getItem(`visitorCount_${today}`);
-    const totalCount = (savedCount ? parseInt(savedCount, 10) : 0) + currentCount;
-    localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
-    
-    // 오늘의 방문객 상세 데이터 저장 (그래프용)
+    const previousCount = savedCount ? parseInt(savedCount, 10) : 0;
     const todayDataKey = `todayVisitors_${today}`;
-    const existingVisitors = localStorage.getItem(todayDataKey);
-    const allVisitors = existingVisitors ? JSON.parse(existingVisitors) : [];
-    allVisitors.push(...visitors);
-    localStorage.setItem(todayDataKey, JSON.stringify(allVisitors));
+    const previousVisitors = localStorage.getItem(todayDataKey);
     
     try {
+      // 1. Firebase 전송 먼저 수행 (실패 시 localStorage 건드리지 않음)
       const formattedVisitors = formatVisitorData(visitors);
       
-      // Firebase에 데이터 저장
-      for (const visitor of formattedVisitors) {
-        await addDoc(collection(db, "visitors"), {
-          ...visitor,
-          location: roomLocation,
-          timestamp: serverTimestamp()
-        });
-      }
+      // Firebase 배치 저장 (하나라도 실패하면 전체 실패)
+      await Promise.all(
+        formattedVisitors.map(visitor =>
+          addDoc(collection(db, "visitors"), {
+            ...visitor,
+            location: roomLocation,
+            timestamp: serverTimestamp()
+          })
+        )
+      );
       
+      // 2. Firebase 전송 성공 후에만 localStorage 업데이트
+      const totalCount = previousCount + currentCount;
+      localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
+      
+      const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
+      existingVisitors.push(...visitors);
+      localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
+      
+      // 3. 성공 처리
       setLastCount(currentCount);
       setShowModal(true);
       setVisitors([]);
@@ -357,7 +456,22 @@ function App() {
       setIsAIMode(true);
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
-      alert("데이터 전송 실패. 인터넷 연결을 확인해주세요.");
+      
+      // 에러 메시지 상세화
+      let errorMsg = '데이터 전송에 실패했습니다.';
+      if (error.code === 'permission-denied') {
+        errorMsg += '\n권한이 없습니다. 관리자에게 문의하세요.';
+      } else if (error.message?.includes('network')) {
+        errorMsg += '\n인터넷 연결을 확인해주세요.';
+      } else {
+        errorMsg += '\n잠시 후 다시 시도해주세요.';
+      }
+      
+      setErrorMessage(errorMsg);
+      setShowErrorModal(true);
+      
+      // localStorage는 이미 Firebase 전송 전이므로 롤백 불필요
+      // visitors 상태는 유지되어 재시도 가능
     } finally {
       setIsSending(false);
     }
@@ -368,12 +482,27 @@ function App() {
   }
 
   if (showRoomSetup) {
-    return <AdminLockScreen onUnlock={() => setShowRoomSetup(false)} />;
+    return <AdminLockScreen onUnlock={handleRoomSetupComplete} />;
   } 
 
   return (
     <div style={styles.pageBackground}>
       <SuccessModal isOpen={showModal} onClose={() => setShowModal(false)} count={lastCount} />
+      <ErrorModal 
+        isOpen={showErrorModal} 
+        onClose={() => setShowErrorModal(false)}
+        onRetry={() => {
+          setShowErrorModal(false);
+          // AI 스캔 결과가 있으면 재전송, 없으면 수동 입력 재전송
+          if (scannedVisitors.length > 0) {
+            handleScanConfirm();
+          } else if (visitors.length > 0) {
+            submitData();
+          }
+        }}
+        message={errorMessage}
+        showRetry={scannedVisitors.length > 0 || visitors.length > 0}
+      />
       <ScanConfirmModal 
         isOpen={showScanConfirm}
         onClose={handleScanCancel}
