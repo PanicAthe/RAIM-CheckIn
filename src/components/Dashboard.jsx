@@ -375,18 +375,21 @@ export default function Dashboard({ onClose, onSave }) {
   };
 
   useEffect(() => {
-    // 모든 과거 데이터 정리 (오늘 데이터만 남기기)
-    const today = new Date().toDateString();
+    const today = new Date();
+    const todayStr = today.toDateString();
     const keys = Object.keys(localStorage);
     
     keys.forEach(key => {
-      if ((key.startsWith('visitorCount_') || key.startsWith('todayVisitors_')) && !key.includes(today)) {
-        localStorage.removeItem(key);
+      if (key.startsWith('visitorCount_') || key.startsWith('todayVisitors_')) {
+        const dateStr = key.split('_').slice(1).join('_');
+        
+        if (dateStr !== todayStr) {
+          localStorage.removeItem(key);
+        }
       }
     });
     
-    // 오늘의 입장객 수 로드
-    const savedData = localStorage.getItem(`visitorCount_${today}`);
+    const savedData = localStorage.getItem(`visitorCount_${todayStr}`);
     if (savedData) {
       setTodayCount(parseInt(savedData, 10));
     }

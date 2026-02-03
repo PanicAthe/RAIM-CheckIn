@@ -184,7 +184,6 @@ export default function AdminLockScreen({ onUnlock }) {
   );
 }
 
-// Height helper for the footer logo so the device type can flow into inline styles
 function pickHeight(device) {
   const map = {
     mobile: '78px',

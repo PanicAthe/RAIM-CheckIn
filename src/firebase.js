@@ -17,7 +17,7 @@ const missingKeys = Object.entries(firebaseConfig)
 
 if (missingKeys.length) {
   const errorMsg = `
-❌ Firebase 환경변수가 설정되지 않았습니다!
+⚠️ Firebase 환경변수가 설정되지 않았습니다!
 
 누락된 환경변수:
 ${missingKeys.map(key => `  - ${key}`).join('\n')}
@@ -35,9 +35,14 @@ ${missingKeys.map(key => `  - ${key}`).join('\n')}
 3. 개발 서버를 재시작하세요 (npm run dev)
 
 자세한 내용은 README.md를 참고하세요.
+
+⚠️ 경고: Firebase 연결 없이 실행 중입니다. 데이터는 localStorage에만 저장됩니다.
 `;
   console.error(errorMsg);
-  throw new Error(`Missing Firebase environment variables: ${missingKeys.join(", ")}`)
+  // 개발 중에는 경고만 표시하고 계속 실행 (프로덕션에서는 throw 권장)
+  if (import.meta.env.PROD) {
+    throw new Error(`Missing Firebase environment variables: ${missingKeys.join(", ")}`);
+  }
 }
 
 const app = initializeApp(firebaseConfig);

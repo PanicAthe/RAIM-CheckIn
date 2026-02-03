@@ -161,8 +161,8 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
       '중년(40~64세)': 'middleAge',
       '노년': 'senior',
       '노년(65세 이상)': 'senior',
-      '영유아': 'infant', // 레거시 지원
-      '장년': 'senior' // 레거시 지원
+      '영유아': 'infant',
+      '장년': 'senior'
     };
     return mapping[ageGroup] || 'youth';
   };
@@ -187,20 +187,16 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
   const handleQuantityChange = (groupedVisitor, delta) => {
     const newCount = groupedVisitor.count + delta;
     if (newCount <= 0) {
-      // 수량이 0이 되면 모든 항목 삭제
       groupedVisitor.ids.forEach(id => onRemove(id));
     } else if (delta > 0) {
-      // 수량 증가 - 새 항목 추가
       const newVisitor = {
         id: Date.now() + Math.random(),
         ageGroup: groupedVisitor.ageGroup,
         gender: groupedVisitor.gender,
         source: groupedVisitor.source
       };
-      // onAdd에 visitor 객체를 전달
       onAdd(newVisitor);
     } else {
-      // 수량 감소 - 하나만 삭제
       onRemove(groupedVisitor.ids[groupedVisitor.ids.length - 1]);
     }
   };

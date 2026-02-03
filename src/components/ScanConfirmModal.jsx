@@ -198,8 +198,8 @@ export default function ScanConfirmModal({
       '중년(40~64세)': 'middleAge',
       '노년': 'senior',
       '노년(65세 이상)': 'senior',
-      '영유아': 'infant', // 레거시 지원
-      '장년': 'senior' // 레거시 지원
+      '영유아': 'infant',
+      '장년': 'senior'
     };
     return mapping[ageGroup] || 'youth';
   };
