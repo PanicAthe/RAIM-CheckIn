@@ -754,7 +754,7 @@ export default function Dashboard({ onClose, onSave }) {
                     placeholder="커스텀 관람실 이름 입력"
                     style={{
                       width: '100%',
-                      padding: '18px 18px 18px 52px',
+                      padding: '18px 18px 18px 20px',
                       fontSize: '18px',
                       border: `2px solid ${RAIM_COLORS.DARK}`,
                       borderRadius: '16px',
