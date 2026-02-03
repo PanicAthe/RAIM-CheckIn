@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown } from 'lucide-react';
+import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown, Edit3 } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { RAIM_COLORS, ageGroups, roomLocations } from '../constants';
 
@@ -364,6 +364,8 @@ export default function Dashboard({ onClose, onSave }) {
   const [todayCount, setTodayCount] = useState(0);
   const [ageCorrection, setAgeCorrection] = useState(4);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [isCustomRoom, setIsCustomRoom] = useState(false);
+  const [customRoomName, setCustomRoomName] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [visitorStats, setVisitorStats] = useState({
     ageGroups: {},
@@ -437,7 +439,14 @@ export default function Dashboard({ onClose, onSave }) {
     // 저장된 관람실 정보 로드
     const savedRoom = localStorage.getItem('room_location');
     if (savedRoom) {
-      setSelectedRoom(savedRoom);
+      // 기본 관람실 목록에 없으면 커스텀으로 처리
+      if (!roomLocations.includes(savedRoom)) {
+        setIsCustomRoom(true);
+        setCustomRoomName(savedRoom);
+        setSelectedRoom('__custom__');
+      } else {
+        setSelectedRoom(savedRoom);
+      }
       // 관람실별 방문객 데이터 분석
       analyzeVisitorData(savedRoom);
     } else {
@@ -447,7 +456,18 @@ export default function Dashboard({ onClose, onSave }) {
   }, []);
 
   const handleSave = () => {
-    if (!selectedRoom) {
+    let finalRoomName = selectedRoom;
+    
+    // 커스텀 관람실 처리
+    if (selectedRoom === '__custom__') {
+      if (!customRoomName.trim()) {
+        alert("커스텀 관람실 이름을 입력해주세요.");
+        return;
+      }
+      finalRoomName = customRoomName.trim();
+    }
+    
+    if (!finalRoomName) {
       alert("관람실을 선택해주세요.");
       return;
     }
@@ -456,10 +476,10 @@ export default function Dashboard({ onClose, onSave }) {
     localStorage.setItem('ageCorrection', ageCorrection.toString());
     
     // 관람실 정보 저장
-    localStorage.setItem('room_location', selectedRoom);
+    localStorage.setItem('room_location', finalRoomName);
     
     // 관람실이 변경되었으면 데이터 다시 분석
-    analyzeVisitorData(selectedRoom);
+    analyzeVisitorData(finalRoomName);
 
     setShowSaveModal(true);
   };
@@ -647,7 +667,7 @@ export default function Dashboard({ onClose, onSave }) {
             <div style={styles.statsCard}>
               <div style={styles.statsContent}>
                 <div style={styles.statsLabel}>
-                  {selectedRoom ? `${selectedRoom} - 오늘의 누적 입장객` : '오늘의 누적 입장객 수'}
+                  {(isCustomRoom ? customRoomName : selectedRoom) ? `${isCustomRoom ? customRoomName : selectedRoom} - 오늘의 누적 입장객` : '오늘의 누적 입장객 수'}
                 </div>
                 <div style={styles.statsNumber}>{todayCount.toLocaleString()}명</div>
               </div>
@@ -678,7 +698,7 @@ export default function Dashboard({ onClose, onSave }) {
               <GenderChart />
             </div>
             <div style={styles.infoText}>
-              오늘 {selectedRoom ? `${selectedRoom} ` : ''}방문객의 분포입니다.
+              오늘 {(isCustomRoom ? customRoomName : selectedRoom) ? `${isCustomRoom ? customRoomName : selectedRoom} ` : ''}방문객의 분포입니다.
             </div>
           </div>
         </div>
@@ -699,13 +719,22 @@ export default function Dashboard({ onClose, onSave }) {
               <MapPin size={24} color={RAIM_COLORS.MUTED} style={{position:'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', zIndex: 1}} />
               <select 
                 value={selectedRoom}
-                onChange={(e) => setSelectedRoom(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedRoom(value);
+                  if (value === '__custom__') {
+                    setIsCustomRoom(true);
+                  } else {
+                    setIsCustomRoom(false);
+                  }
+                }}
                 style={styles.select}
               >
                 <option value="">관람실 선택</option>
                 {roomLocations.map(room => (
                   <option key={room} value={room}>{room}</option>
                 ))}
+                <option value="__custom__">직접 입력</option>
               </select>
               <ChevronDown 
                 size={24} 
@@ -713,8 +742,34 @@ export default function Dashboard({ onClose, onSave }) {
                 style={styles.selectIcon}
               />
             </div>
+            
+            {/* 커스텀 관람실 입력 필드 */}
+            {isCustomRoom && (
+              <div style={{ marginTop: '12px' }}>
+                <div style={styles.inputWrapper}>
+                  <input 
+                    type="text"
+                    value={customRoomName}
+                    onChange={(e) => setCustomRoomName(e.target.value)}
+                    placeholder="커스텀 관람실 이름 입력"
+                    style={{
+                      width: '100%',
+                      padding: '18px 18px 18px 20px',
+                      fontSize: '18px',
+                      border: `2px solid ${RAIM_COLORS.DARK}`,
+                      borderRadius: '16px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      minHeight: '58px'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
             <div style={styles.infoText}>
               방문객 데이터에 관람실 정보가 함께 저장됩니다.
+              {isCustomRoom && <><br />커스텀 관람실은 대시보드에서만 설정 가능합니다.</>}
             </div>
           </div>
           <div style={styles.formGroup}>

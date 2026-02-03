@@ -1,0 +1,363 @@
+// ================= [설정 영역: fireabse 초기화 시 JSON 파일 내용을 보고 채워주세요] =================
+// JSON 파일 : firebase 접속 -> 프로젝트 설정 → "서비스 계정" -> "새 비공개 키 생성" → JSON 파일 다운로드
+
+// 1. firebase-adminsdk... 이메일 
+// Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 시 확인 가능
+const CLIENT_EMAIL = "your-firebase-adminsdk@your-project.iam.gserviceaccount.com";
+
+// 2. PRIVATE KEY 
+// Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성 → JSON 파일의 private_key 값
+// ★ 주의: \n을 실제 줄바꿈이 아닌 문자열 \n 그대로 복사해야 합니다
+const PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n여기에_실제_키_내용을_붙여넣으세요\n-----END PRIVATE KEY-----\n";
+
+// 3. 프로젝트 ID 
+// Firebase 콘솔 → 프로젝트 설정 → 일반 탭 → 프로젝트 ID
+const PROJECT_ID = "your-firebase-project-id"; 
+
+// 4. Firestore 컬렉션 이름 (매우 중요 ★)
+// Firebase 콘솔 -> Firestore Database -> 데이터 탭에 보이는 첫 번째 폴더 이름
+// 보통 "visitors" 라고 되어 있을 겁니다. 다르다면 확인 후 똑같이 맞춰주세요.
+const COLLECTION_NAME = "visitors"; 
+
+// 5. 시트 탭 이름 (매우 중요 ★, 설정된 시트 이름이 정확해야 데이터 백업 가능)
+const SHEET_NAME = "시트1"; 
+
+// 6. 이메일 알림 받을 주소 (오류 발생 시 알림)
+const ALERT_EMAIL = "your-email@example.com"; 
+
+// ===========================================================================
+
+/**
+ * 1. 설정값 검증 함수
+ */
+function validateConfig() {
+  if (!CLIENT_EMAIL || !PRIVATE_KEY || !PROJECT_ID || !COLLECTION_NAME || !SHEET_NAME) {
+    Logger.log("❌ 필수 설정 누락:");
+    Logger.log(`  - CLIENT_EMAIL: ${CLIENT_EMAIL ? "✓" : "✗"}`);
+    Logger.log(`  - PRIVATE_KEY: ${PRIVATE_KEY ? "✓" : "✗"}`);
+    Logger.log(`  - PROJECT_ID: ${PROJECT_ID ? "✓" : "✗"}`);
+    Logger.log(`  - COLLECTION_NAME: ${COLLECTION_NAME ? "✓" : "✗"}`);
+    Logger.log(`  - SHEET_NAME: ${SHEET_NAME ? "✓" : "✗"}`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * 2. Firestore에서 모든 데이터 가져오기 (페이지네이션 처리)
+ */
+function fetchAllDocuments(token) {
+  const allDocs = [];
+  let pageToken = null;
+  let pageNum = 1;
+
+  while (true) {
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION_NAME}?pageSize=300${pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""}`;
+    
+    try {
+      const response = UrlFetchApp.fetch(url, {
+        method: "get",
+        headers: { Authorization: "Bearer " + token },
+        muteHttpExceptions: true
+      });
+
+      if (response.getResponseCode() !== 200) {
+        Logger.log("❌ Firestore 접속 실패 (페이지 " + pageNum + ")");
+        Logger.log("응답: " + response.getContentText());
+        break;
+      }
+
+      const result = JSON.parse(response.getContentText());
+      if (result.documents && result.documents.length > 0) {
+        allDocs.push(...result.documents);
+        Logger.log(`페이지 ${pageNum}: ${result.documents.length}개 조회 (누계: ${allDocs.length}개)`);
+      }
+
+      // 다음 페이지가 없으면 종료
+      if (!result.nextPageToken) {
+        break;
+      }
+      pageToken = result.nextPageToken;
+      pageNum++;
+    } catch (e) {
+      Logger.log(`❌ 페이지 ${pageNum} 조회 실패: ${e.message}`);
+      break;
+    }
+  }
+
+  Logger.log(`✓ 총 ${allDocs.length}개 문서 조회 완료`);
+  return allDocs;
+}
+
+/**
+ * 3. 인증 토큰 생성
+ */
+function getFirebaseService() {
+  return OAuth2.createService('Firebase')
+    .setTokenUrl('https://oauth2.googleapis.com/token')
+    .setPrivateKey(PRIVATE_KEY)
+    .setIssuer(CLIENT_EMAIL)
+    .setPropertyStore(PropertiesService.getScriptProperties())
+    .setScope('https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/cloud-platform');
+}
+
+/**
+ * 4. Firestore 백업 및 삭제 메인 함수 (개선됨)
+ */
+function backupAndDelete() {
+  const startTime = new Date();
+  let errorOccurred = false;
+  let errorMessage = "";
+  
+  try {
+    // 설정값 검증
+    if (!validateConfig()) {
+      errorMessage = "설정값 검증 실패";
+      errorOccurred = true;
+      return;
+    }
+
+    const service = getFirebaseService();
+    if (!service.hasAccess()) {
+      errorMessage = '인증 실패: ' + service.getLastError();
+      errorOccurred = true;
+      Logger.log('❌ ' + errorMessage);
+      return;
+    }
+    const token = service.getAccessToken();
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+
+    if (!sheet) {
+      errorMessage = `시트 찾기 실패: "${SHEET_NAME}"`;
+      errorOccurred = true;
+      Logger.log(`❌ ${errorMessage}`);
+      return;
+    }
+
+    // (1) Firestore 데이터 가져오기 (페이지네이션 포함)
+    Logger.log(`📥 Firestore에서 데이터 조회 중... (${COLLECTION_NAME})`);
+    const allDocuments = fetchAllDocuments(token);
+
+    if (allDocuments.length === 0) {
+      Logger.log("ℹ️ 백업할 데이터가 없습니다.");
+      return;
+    }
+
+    // 실행 시간 체크 (4.5분 경과 시 중단)
+    const elapsed = (new Date() - startTime) / 1000;
+    if (elapsed > 270) {
+      errorMessage = `실행 시간 초과 (${Math.round(elapsed)}초). 데이터가 너무 많습니다.`;
+      errorOccurred = true;
+      Logger.log(`⚠️ ${errorMessage}`);
+      return;
+    }
+
+    const rowsToAdd = [];
+    const docNamesToDelete = [];
+
+    // (2) 데이터 파싱
+    for (let i = 0; i < allDocuments.length; i++) {
+      const doc = allDocuments[i];
+      const fields = doc.fields;
+      
+      // 날짜 및 시간 변환 (KST)
+      let formattedDate = "";
+      if (fields.timestamp && fields.timestamp.timestampValue) {
+        const dateObj = new Date(fields.timestamp.timestampValue);
+        formattedDate = Utilities.formatDate(dateObj, "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
+      } else {
+        formattedDate = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
+      }
+
+      // 필드 값 추출
+      const gender = fields.gender ? (fields.gender.stringValue || "") : "";
+      const ageGroup = fields.ageGroup ? (fields.ageGroup.stringValue || "") : "";
+      const source = fields.source ? (fields.source.stringValue || "") : "";
+      const location = fields.location ? (fields.location.stringValue || "") : "";
+      
+      // 시트 저장 순서: [날짜시간, 성별, 연령대, 출처, 장소]
+      rowsToAdd.push([formattedDate, gender, ageGroup, source, location]);
+      
+      // 삭제를 위해서는 경로 필요
+      docNamesToDelete.push(doc.name);
+    }
+
+    // (3) 시트 저장
+    if (rowsToAdd.length > 0) {
+      let backupSuccess = false;
+      try {
+        sheet.getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, rowsToAdd[0].length).setValues(rowsToAdd);
+        Logger.log(`✓ ${rowsToAdd.length}개의 데이터 백업 완료`);
+        backupSuccess = true;
+      } catch (e) {
+        errorMessage = `시트 저장 실패: ${e.message}`;
+        errorOccurred = true;
+        Logger.log(`❌ ${errorMessage}`);
+        Logger.log("⚠️ 백업 실패로 인해 Firestore 데이터 삭제를 건너뜁니다. (데이터 안전)");
+        return;
+      }
+
+      // (4) 백업 성공 후에만 Firestore 데이터 삭제
+      if (backupSuccess) {
+        deleteDocuments(token, docNamesToDelete);
+      }
+    }
+
+    const totalTime = Math.round((new Date() - startTime) / 1000);
+    Logger.log(`\n⏱️ 총 실행 시간: ${totalTime}초`);
+    
+  } catch (error) {
+    errorMessage = `예상치 못한 오류: ${error.message}`;
+    errorOccurred = true;
+    Logger.log(`❌ ${errorMessage}`);
+  } finally {
+    // 오류 발생 시 이메일 알림
+    if (errorOccurred && ALERT_EMAIL && ALERT_EMAIL !== "your-email@example.com") {
+      try {
+        MailApp.sendEmail({
+          to: ALERT_EMAIL,
+          subject: "⚠️ Firestore 백업 스크립트 오류 발생",
+          body: `실행 시간: ${startTime}\n\n오류 내용:\n${errorMessage}\n\n자세한 로그는 Apps Script 실행 로그를 확인하세요.`
+        });
+      } catch (e) {
+        Logger.log("이메일 전송 실패: " + e.message);
+      }
+    }
+  }
+}
+
+/**
+ * 5. 문서 삭제 함수 (Batch Delete API - 최적화)
+ * - 500개씩 묶어서 처리 (Firestore Batch 제한)
+ * - 개별 호출 대비 10배 이상 빠름
+ * - 타임아웃 위험 대폭 감소
+ */
+function deleteDocuments(token, docNames) {
+  if (docNames.length === 0) {
+    Logger.log("삭제할 문서가 없습니다.");
+    return;
+  }
+
+  const batchUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:batchWrite`;
+  let totalDeleted = 0;
+  let totalFailed = 0;
+
+  // 500개씩 나누기 (Firestore Batch 제한)
+  for (let i = 0; i < docNames.length; i += 500) {
+    const batch = docNames.slice(i, i + 500);
+    
+    // Batch Delete 요청 구성
+    const writes = batch.map(docName => ({
+      delete: docName
+    }));
+
+    try {
+      const response = UrlFetchApp.fetch(batchUrl, {
+        method: "post",
+        headers: { 
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        payload: JSON.stringify({ writes: writes }),
+        muteHttpExceptions: true
+      });
+
+      const statusCode = response.getResponseCode();
+      
+      if (statusCode === 200) {
+        totalDeleted += batch.length;
+        Logger.log(`✓ Batch ${Math.floor(i/500) + 1}: ${batch.length}개 삭제 성공`);
+      } else {
+        totalFailed += batch.length;
+        Logger.log(`✗ Batch ${Math.floor(i/500) + 1} 실패 (상태: ${statusCode})`);
+        Logger.log(`응답: ${response.getContentText()}`);
+      }
+    } catch (e) {
+      totalFailed += batch.length;
+      Logger.log(`⚠️ Batch ${Math.floor(i/500) + 1} 오류: ${e.message}`);
+    }
+  }
+
+  Logger.log(`\n=== 삭제 완료 ===`);
+  Logger.log(`총 ${docNames.length}개 중 ${totalDeleted}개 삭제 성공`);
+  if (totalFailed > 0) {
+    Logger.log(`⚠️ ${totalFailed}개 삭제 실패 (재시도 필요)`);
+  }
+}
+
+/**
+ * 6. 인증 리셋용 (필요 시만 사용)
+ */
+function resetAuth() {
+  getFirebaseService().reset();
+  Logger.log("인증 리셋 완료");
+}
+
+/**
+ * 🔥 자동화 설정 필수 🔥
+ * 
+ * ============================================================
+ * 1단계: OAuth2 라이브러리 추가 (필수!)
+ * ============================================================
+ * Apps Script 편집기에서:
+ * 1. 왼쪽 "라이브러리 +" 클릭
+ * 2. 스크립트 ID 입력: 1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF
+ * 3. "조회" 클릭 → "OAuth2" 라이브러리 선택
+ * 4. 버전: 최신 버전 선택
+ * 5. "추가" 클릭
+ * 
+ * ============================================================
+ * 2단계: 트리거 설정 (6시간마다 실행)
+ * ============================================================
+ * Apps Script 편집 화면에서:
+ * 1. 왼쪽 "트리거" (시계 아이콘) 클릭
+ * 2. 오른쪽 아래 "+ 트리거 추가" 클릭
+ * 3. 다음 값으로 설정:
+ *    - 실행할 함수: backupAndDelete
+ *    - 배포할 실행: Head
+ *    - 이벤트 소스: 시간 기반
+ *    - 시간 기반 트리거: 시간 간격 타이머
+ *    - 시간 간격: 6시간마다
+ *    - 오류 알림 설정: 매일
+ * 4. "저장" 클릭
+ * 
+ * ※ 트리거가 생성되면 하루 4번 (0시, 6시, 12시, 18시경) 자동 실행됩니다.
+ * 
+ * ============================================================
+ * 3단계: 무료 티어 제한 확인
+ * ============================================================
+ * 
+ * ✅ Firebase Firestore (무료 티어)
+ *    - 읽기: 50,000회/일
+ *    - 쓰기: 20,000회/일
+ *    - 삭제: 20,000회/일
+ *    → 6시간마다 실행 시 한 번에 최대 5,000개 문서까지 안전
+ * 
+ * ✅ Google Apps Script (무료 티어)
+ *    - 실행 제한: 6분
+ *    - 일일 트리거: 90분 (4번 실행 = 24분, 여유 있음)
+ *    - 이메일: 100통/일
+ *    → 한 번에 약 1,500~2,000개 처리 가능 (평균 3분 이내)
+ * 
+ * ✅ Google Sheets (무료 티어)
+ *    - 셀 개수: 1,000만 개 (거의 무제한)
+ *    - API 호출: 분당 60회 (충분함)
+ * 
+ * ⚠️ 주의사항:
+ * - 6시간 동안 1,500개 이상 데이터가 쌓이면 타임아웃 가능
+ * - 그럴 경우 트리거를 3시간마다로 변경 권장
+ * - 이메일 알림 설정 필수 (ALERT_EMAIL 변수 수정)
+ * 
+ * ============================================================
+ * 4단계: 초기 테스트
+ * ============================================================
+ * 1. Apps Script 편집기에서 함수 선택: backupAndDelete
+ * 2. "실행" 버튼 클릭
+ * 3. 권한 승인 (최초 1회)
+ * 4. "실행 로그" 확인하여 정상 작동 확인
+ * 5. Google Sheets에서 데이터 백업 확인
+ * 6. Firebase에서 데이터 삭제 확인
+ * 
+ * ※ 몇 년 동안 자동 작동합니다. 설정 완료 후 1주일 동안만 
+ *    로그를 모니터링하면 됩니다!
+ */

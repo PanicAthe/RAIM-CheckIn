@@ -91,6 +91,79 @@
 
 ---
 
+## 연령대 및 관람실 수정
+
+### 연령대 추가/수정
+
+**파일 위치**: `src/constants.js`
+
+**수정 방법**:
+
+1. `ageGroups` 배열에서 연령대 추가/수정:
+```javascript
+export const ageGroups = [
+  { label: "유아", sub: "0~6세", key: "infant" },
+  { label: "어린이", sub: "7~12세", key: "child" },
+  // 새 연령대 추가 예시:
+  // { label: "청장년", sub: "30~50세", key: "adult" },
+];
+```
+
+2. `AGE_GROUP_LABELS` 객체에 매핑 추가:
+```javascript
+export const AGE_GROUP_LABELS = {
+  '유아': '유아(0~6세)',
+  // 새 항목 추가 예시:
+  // '청장년': '청장년(30~50세)',
+};
+```
+
+3. 다국어 지원 추가 (`src/i18n/translations/ko.json`, `en.json`):
+```json
+{
+  "ageGroups": {
+    "infant": "유아",
+    "infantSub": "0~6세"
+    // 새 연령대 추가
+  }
+}
+```
+
+4. `npm run build` → `git push` (자동 배포)
+
+### 관람실 추가/수정
+
+**파일 위치**: `src/constants.js`
+
+**수정 방법**:
+
+1. `roomLocations` 배열 수정:
+```javascript
+export const roomLocations = [
+  "상설전시",
+  "기획전시",
+  // 새 관람실 추가:
+  "특별전시실",
+  "다목적실-4"
+];
+```
+
+2. `npm run build` → `git push` (자동 배포)
+
+**커스텀 관람실 기능**:
+
+- 관리자 대시보드에서 "직접 입력 (커스텀)" 옵션 선택 시 임의의 관람실 이름 입력 가능
+- 커스텀 관람실은 코드 수정 없이 현장에서 즉시 사용 가능
+- AdminLockScreen에서는 기본 목록만 선택 가능, 대시보드에서만 커스텀 입력 가능
+- 커스텀 관람실도 데이터 전송 및 통계에 정상 반영됨
+
+**주의사항**:
+- 관람실 이름 변경 시 기존 데이터와 연결 끊김 (새 이름으로 저장됨)
+- 기존 데이터는 Google Sheets에서 수동으로 업데이트 필요
+- 커스텀 관람실은 localStorage에 저장되며, 브라우저 데이터 삭제 시 초기화됨
+
+---
+
 ## 트리거 간격 조정
 
 방문자 수에 따라 트리거 간격 변경:
@@ -109,6 +182,11 @@
 3. 새 트리거 추가 (시간 간격 선택)
 4. 저장
 
+**Apps Script 코드 파일**: `./public/script.txt`
+- Firebase 서비스 계정 정보 설정 필요
+- OAuth2 라이브러리 추가 필수
+- 상세 설치 가이드는 파일 내부 주석 참고
+
 ---
 
 ## 데이터 관리
@@ -126,7 +204,10 @@
 
 ### 데이터 보관
 
-- 기기 localStorage: 1일 (일일 통계)
+- 기기 localStorage: 날짜별 관리 (앱 시작 시 과거 날짜 데이터 자동 삭제)
+  - `visitorCount_[날짜]`: 날짜별 총 방문자 수
+  - `todayVisitors_[날짜]`: 날짜별 상세 방문자 데이터
+  - 관람실별로 데이터 저장 및 필터링
 - Firestore: 설정된 간격 (3-12시간)
 - Google Sheets: 무제한 (영구 기록)
 

@@ -2,7 +2,7 @@
 
 **프로젝트명**: RAIM 방문자 체크인 시스템
 
-**작성일**: 2026-01-28  
+**작성일**: 2026-01-28
 
 **수정일**: 2026-02-03
 
@@ -36,17 +36,17 @@
 | ID | 기능 | 설명 |
 | --- | --- | --- |
 | F001 | 웹 기반 입력 인터페이스 | 방문자가 웹 브라우저에서 접근 가능한 체크인 화면 |
-| F002 | 카메라 기반 인식 | 웹캠을 통한 얼굴 인식으로 성별/연령대 자동 감지 (한국식 6단계 분류) |
+| F002 | 카메라 기반 인식 | 웹캠을 통한 얼굴 인식으로 성별/연령대 자동 감지 |
 | F003 | 스캔 확인 모달 | AI 스캔 결과 확인 및 수정 기능 |
 | F004 | 수동 입력 모드 | AI 모드와 수동 모드 전환, 방문자 직접 입력 |
 | F005 | 방문자 리스트 | 전송 전 데이터 확인/편집, 그룹화 및 수량 조절 |
 | F006 | 한/영 다국어 지원 | 한국어/영문 언어 선택 기능 |
-| F007 | 관리자 잠금 화면 | 관람실 선택 및 비밀번호 입력으로 관리자 인증 |
-| F008 | 관리자 대시보드 | localStorage 기반 일일 통계 및 설정 관리 (로고 3회 터치) |
-| F007 | 자동 백업 | 설정된 주기마다 Firestore → Google Sheets 백업 |
-| F008 | 자동 정리 | 백업 완료 후 Firestore 데이터 자동 삭제 |
-| F009 | 오류 알림 | 백업 실패 시 관리자 이메일 알림 |
-| F010 | 배포 | Vercel을 통한 웹 배포 (Git 연동) |
+| F007 | 관리자 잠금 화면 | 최초 진입 시 관람실 선택 및 비밀번호 입력으로 인증 |
+| F008 | 관리자 대시보드 | localStorage 기반 일일 통계 및 설정 관리 (로고 3회 터치, 관람실별 필터링) |
+| F009 | 자동 백업 | 설정된 주기마다 Firestore → Google Sheets 백업 |
+| F010 | 자동 정리 | 백업 완료 후 Firestore 데이터 자동 삭제 |
+| F011 | 오류 알림 | 백업 실패 시 관리자 이메일 알림 |
+| F012 | 배포 | Vercel을 통한 웹 배포 (Git 연동) |
 
 ---
 
@@ -95,18 +95,18 @@
 
 ### 5.1 기술 스택
 
-| 계층 | 기술 | 이유 |
-| --- | --- | --- |
-| Frontend | React + Vite | 빠른 성능, 실시간 UI |
-| Face Recognition | face-api.js | 브라우저 기반 얼굴 인식 |
-| Backend | Firebase Firestore | 무료 실시간 데이터베이스 |
-| Automation | Google Apps Script | 무료 자동화 스케줄러 |
-| Backup | Google Sheets | 무료 영구 데이터 보관 |
-| Hosting | Vercel | Git 기반 자동 배포 (무료) |
+| 계층 | 기술 |
+| --- | --- |
+| Frontend | React + Vite |
+| Face Recognition | face-api.js |
+| Backend | Firebase Firestore |
+| Automation | Google Apps Script |
+| Backup | Google Sheets |
+| Hosting | Vercel |
 
 ### 5.2 외부 의존성
 
-- Firebase 프로젝트 (무료)
+- Firebase 프로젝트
 - Google 계정
 - Google Apps Script OAuth2 라이브러리
 - face-api.js 모델 파일
@@ -127,16 +127,16 @@
 - timestamp: 날짜/시간
 - gender: 성별 (남성/여성)
 - ageGroup: 연령대 (10대, 20대, ...)
-- source: 입력 방식 (카메라/수동)
-- location: 위치/출입구
+- source: 입력 방식 (AI/수동)
+- location: 관람실 (다목적실-1, 다목적실-2, ...)
 
 ```
 
 ### 6.2 데이터 보관 정책
 
-- localStorage: 자정까지 (일일 통계 임시 저장)
-- Firestore: 설정 간격마다 백업 후 삭제 (1/3/6/12시간 중 선택, 3시간 권장)
-- Google Sheets: 무제한 (집계 데이터)
+- localStorage: 일일 통계용 (앱 시작 시 과거 데이터 삭제)
+- Firestore: 설정 간격마다 백업 후 삭제 (1/3/6/12시간)
+- Google Sheets: 영구 보관
 
 ### 6.3 데이터 용량
 
@@ -156,15 +156,14 @@
 
 ### 7.2 배포 주기
 
-- 수정사항 발생 시 GitHub에 push → Vercel 자동 배포
-- 배포 시간: 1~2분 (빌드 및 배포)
-- 계획된 업데이트: 수시 (매 커밋마다 배포)
+- 자동 배포: GitHub push 시 자동 실행
+- 배포 시간: 2분 이내
 
 ### 7.3 가동성 검증
 
-- 자동 테스트: Vercel 빌드 단계에서 실행
-- Preview URL: pull request 시마다 자동 생성
-- 프로덕션 배포: GitHub main 브랜치 merge 시 자동 배포
+- Vercel 자동 빌드 및 테스트
+- Preview URL을 통한 PR 검증
+- 프로덕션: main 브랜치 merge 시 자동 배포
 
 ---
 
@@ -216,7 +215,7 @@
 
 - [ ]  성능 최적화 (API 효율 40% 개선)
 - [ ]  안정성 검증 (1,000+ 문서 처리 테스트)
-- [ ]  문서화 (본 명세서)
-- [ ]  비용 검증 (무료 티어 내 운영 확인)
+- [x]  문서화 (본 명세서)
+- [x]  비용 검증 (무료 티어 내 운영 확인)
 
 ---
