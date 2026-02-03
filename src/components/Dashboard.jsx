@@ -43,12 +43,12 @@ const getStyles = (device) => {
     },
     dashboardTitle: {
       margin: 0,
-      fontSize: pick({ mobile: '26px', tablet: '32px', tabletA9: '34px', desktop: '36px' }),
+      fontSize: pick({ mobile: '22px', tablet: '32px', tabletA9: '34px', desktop: '36px' }),
       color: RAIM_COLORS.DARK,
       fontWeight: '800',
       display: 'flex',
       alignItems: 'center',
-      gap: '15px'
+      gap: pick({ mobile: '12px', tablet: '15px', tabletA9: '15px', desktop: '15px' })
     },
     closeButton: {
       background: RAIM_COLORS.BG,
@@ -56,7 +56,7 @@ const getStyles = (device) => {
       cursor: 'pointer',
       color: RAIM_COLORS.MUTED,
       padding: pick({ mobile: '12px', tablet: '14px', tabletA9: '14px', desktop: '14px' }),
-      borderRadius: '16px',
+      borderRadius: pick({ mobile: '12px', tablet: '16px', tabletA9: '16px', desktop: '16px' }),
       transition: 'all 0.3s',
       fontSize: '18px',
       minWidth: pick({ mobile: '44px', tablet: '48px', tabletA9: '50px', desktop: '50px' }),
@@ -67,8 +67,8 @@ const getStyles = (device) => {
     },
     gridContainer: {
       display: 'grid',
-      gridTemplateColumns: pick({ mobile: 'repeat(auto-fit, minmax(320px, 1fr))', tablet: 'repeat(auto-fit, minmax(420px, 1fr))', tabletA9: 'repeat(auto-fit, minmax(440px, 1fr))', desktop: 'repeat(auto-fit, minmax(450px, 1fr))' }),
-      gap: pick({ mobile: '16px', tablet: '22px', tabletA9: '26px', desktop: '30px' }),
+      gridTemplateColumns: pick({ mobile: '1fr', tablet: 'repeat(auto-fit, minmax(420px, 1fr))', tabletA9: 'repeat(auto-fit, minmax(440px, 1fr))', desktop: 'repeat(auto-fit, minmax(450px, 1fr))' }),
+      gap: pick({ mobile: '18px', tablet: '22px', tabletA9: '26px', desktop: '30px' }),
       marginBottom: pick({ mobile: '22px', tablet: '28px', tabletA9: '32px', desktop: '35px' })
     },
     section: {
@@ -78,7 +78,9 @@ const getStyles = (device) => {
       border: `1px solid ${RAIM_COLORS.BG}`,
       transition: 'all 0.3s',
       borderTop: `4px solid ${RAIM_COLORS.DARK}`,
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: '100%'
     },
     sectionTitle: {
       fontSize: pick({ mobile: '18px', tablet: '20px', tabletA9: '21px', desktop: '22px' }),
@@ -91,46 +93,66 @@ const getStyles = (device) => {
     },
     statsCard: {
     background: `linear-gradient(135deg, ${RAIM_COLORS.DARK}, ${RAIM_COLORS.MEDIUM})`,
-    borderRadius: '20px',
-    padding: '40px 30px',
-    textAlign: 'center',
+    borderRadius: pick({ mobile: '14px', tablet: '16px', tabletA9: '16px', desktop: '16px' }),
+    padding: pick({ mobile: '20px', tablet: '28px', tabletA9: '30px', desktop: '30px' }),
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     color: 'white',
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    boxShadow: '0 8px 24px rgba(0, 68, 139, 0.2)',
+    boxSizing: 'border-box',
+    width: '100%',
+    maxWidth: '100%'
+  },
+  statsContent: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
   },
   statsNumber: {
-    fontSize: '68px',
+    fontSize: pick({ mobile: '32px', tablet: '42px', tabletA9: '44px', desktop: '46px' }),
     color: 'white',
     fontWeight: '800',
-    margin: '20px 0',
-    textShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+    margin: 0,
+    textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
     position: 'relative',
-    zIndex: 1
+    zIndex: 1,
+    lineHeight: 1.2
   },
   statsLabel: {
-    fontSize: '18px',
+    fontSize: pick({ mobile: '12px', tablet: '15px', tabletA9: '15px', desktop: '15px' }),
     color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
     position: 'relative',
-    zIndex: 1
+    zIndex: 1,
+    lineHeight: 1.3
+  },
+  statsIcon: {
+    opacity: 0.15,
+    position: 'absolute',
+    right: pick({ mobile: '15px', tablet: '20px', tabletA9: '20px', desktop: '20px' }),
+    top: '50%',
+    transform: 'translateY(-50%)'
   },
   formGroup: {
-    marginBottom: '30px'
+    marginBottom: pick({ mobile: '20px', tablet: '28px', tabletA9: '28px', desktop: '30px' })
   },
   formLabel: {
     display: 'block',
     marginBottom: '12px',
-    fontSize: '18px',
+    fontSize: pick({ mobile: '15px', tablet: '17px', tabletA9: '17px', desktop: '18px' }),
     fontWeight: '600',
     color: RAIM_COLORS.DARK
   },
   sliderContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: pick({ mobile: '8px', tablet: '20px', tabletA9: '20px', desktop: '20px' }),
-    padding: pick({ mobile: '12px', tablet: '20px', tabletA9: '20px', desktop: '20px' }),
+    gap: pick({ mobile: '6px', tablet: '20px', tabletA9: '20px', desktop: '20px' }),
+    padding: pick({ mobile: '10px', tablet: '20px', tabletA9: '20px', desktop: '20px' }),
     backgroundColor: 'white',
-    borderRadius: '16px',
+    borderRadius: pick({ mobile: '12px', tablet: '16px', tabletA9: '16px', desktop: '16px' }),
     border: `2px solid ${RAIM_COLORS.BG}`,
     boxSizing: 'border-box'
   },
@@ -143,45 +165,45 @@ const getStyles = (device) => {
     cursor: 'pointer'
   },
   sliderValue: {
-    minWidth: pick({ mobile: '50px', tablet: '80px', tabletA9: '80px', desktop: '80px' }),
+    minWidth: pick({ mobile: '42px', tablet: '80px', tabletA9: '80px', desktop: '80px' }),
     textAlign: 'center',
-    fontSize: pick({ mobile: '16px', tablet: '24px', tabletA9: '24px', desktop: '24px' }),
+    fontSize: pick({ mobile: '14px', tablet: '24px', tabletA9: '24px', desktop: '24px' }),
     fontWeight: '800',
     color: RAIM_COLORS.DARK,
-    padding: pick({ mobile: '6px 10px', tablet: '10px 18px', tabletA9: '10px 18px', desktop: '10px 18px' }),
+    padding: pick({ mobile: '4px 8px', tablet: '10px 18px', tabletA9: '10px 18px', desktop: '10px 18px' }),
     backgroundColor: RAIM_COLORS.BG,
-    borderRadius: '12px',
+    borderRadius: pick({ mobile: '8px', tablet: '12px', tabletA9: '12px', desktop: '12px' }),
     flexShrink: 0
   },
   saveButton: {
     width: '100%',
-    padding: '24px',
+    padding: pick({ mobile: '18px', tablet: '22px', tabletA9: '22px', desktop: '24px' }),
     background: `linear-gradient(135deg, ${RAIM_COLORS.DARK}, ${RAIM_COLORS.MEDIUM})`,
     color: 'white',
     border: 'none',
-    borderRadius: '20px',
-    fontSize: '20px',
+    borderRadius: pick({ mobile: '16px', tablet: '18px', tabletA9: '20px', desktop: '20px' }),
+    fontSize: pick({ mobile: '17px', tablet: '19px', tabletA9: '19px', desktop: '20px' }),
     fontWeight: '700',
     cursor: 'pointer',
     transition: 'all 0.3s',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '12px',
+    gap: pick({ mobile: '8px', tablet: '10px', tabletA9: '10px', desktop: '12px' }),
     boxShadow: '0 8px 24px rgba(0, 68, 139, 0.3)',
-    minHeight: '70px'
+    minHeight: pick({ mobile: '56px', tablet: '66px', tabletA9: '68px', desktop: '70px' })
   },
   infoText: {
-    fontSize: '15px',
+    fontSize: pick({ mobile: '13px', tablet: '14px', tabletA9: '14px', desktop: '15px' }),
     color: RAIM_COLORS.MUTED,
-    marginTop: '12px',
+    marginTop: pick({ mobile: '10px', tablet: '12px', tabletA9: '12px', desktop: '12px' }),
     textAlign: 'center',
     lineHeight: '1.5'
   },
   iconWrapper: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '14px',
+    width: pick({ mobile: '40px', tablet: '46px', tabletA9: '46px', desktop: '48px' }),
+    height: pick({ mobile: '40px', tablet: '46px', tabletA9: '46px', desktop: '48px' }),
+    borderRadius: pick({ mobile: '12px', tablet: '14px', tabletA9: '14px', desktop: '14px' }),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -191,14 +213,18 @@ const getStyles = (device) => {
   chartContainer: {
     backgroundColor: 'white',
     borderRadius: '16px',
-    padding: '24px',
-    border: `1px solid ${RAIM_COLORS.BG}`
+    padding: pick({ mobile: '16px', tablet: '24px', tabletA9: '24px', desktop: '24px' }),
+    border: `1px solid ${RAIM_COLORS.BG}`,
+    boxSizing: 'border-box',
+    width: '100%',
+    maxWidth: '100%',
+    overflow: 'hidden'
   },
   chartTitle: {
-    fontSize: '18px',
+    fontSize: pick({ mobile: '15px', tablet: '17px', tabletA9: '17px', desktop: '18px' }),
     fontWeight: '600',
     color: RAIM_COLORS.DARK,
-    marginBottom: '18px',
+    marginBottom: pick({ mobile: '14px', tablet: '16px', tabletA9: '16px', desktop: '18px' }),
     textAlign: 'center'
   },
   barChart: {
@@ -344,14 +370,19 @@ export default function Dashboard({ onClose, onSave }) {
     gender: { male: 0, female: 0 }
   });
 
-  // 오늘의 방문객 데이터 분석
-  const analyzeVisitorData = () => {
+  // 오늘의 방문객 데이터 분석 (현재 관람실만 필터링)
+  const analyzeVisitorData = (currentRoom) => {
     const today = new Date().toDateString();
     const todayDataKey = `todayVisitors_${today}`;
     const savedVisitors = localStorage.getItem(todayDataKey);
     
     if (savedVisitors) {
-      const visitors = JSON.parse(savedVisitors);
+      const allVisitors = JSON.parse(savedVisitors);
+      // 현재 관람실의 방문객만 필터링
+      const visitors = currentRoom 
+        ? allVisitors.filter(v => v.location === currentRoom)
+        : allVisitors;
+      
       const ageGroupCount = {};
       const genderCount = { male: 0, female: 0 };
       
@@ -367,9 +398,17 @@ export default function Dashboard({ onClose, onSave }) {
         }
       });
       
+      setTodayCount(visitors.length);
       setVisitorStats({
         ageGroups: ageGroupCount,
         gender: genderCount
+      });
+    } else {
+      // 데이터가 없을 경우 초기화
+      setTodayCount(0);
+      setVisitorStats({
+        ageGroups: {},
+        gender: { male: 0, female: 0 }
       });
     }
   };
@@ -388,11 +427,6 @@ export default function Dashboard({ onClose, onSave }) {
         }
       }
     });
-    
-    const savedData = localStorage.getItem(`visitorCount_${todayStr}`);
-    if (savedData) {
-      setTodayCount(parseInt(savedData, 10));
-    }
 
     // 저장된 나이 보정값 로드
     const savedCorrection = localStorage.getItem('ageCorrection');
@@ -404,10 +438,12 @@ export default function Dashboard({ onClose, onSave }) {
     const savedRoom = localStorage.getItem('room_location');
     if (savedRoom) {
       setSelectedRoom(savedRoom);
+      // 관람실별 방문객 데이터 분석
+      analyzeVisitorData(savedRoom);
+    } else {
+      // 관람실이 없으면 전체 데이터 분석
+      analyzeVisitorData(null);
     }
-
-    // 방문객 데이터 분석
-    analyzeVisitorData();
   }, []);
 
   const handleSave = () => {
@@ -421,6 +457,9 @@ export default function Dashboard({ onClose, onSave }) {
     
     // 관람실 정보 저장
     localStorage.setItem('room_location', selectedRoom);
+    
+    // 관람실이 변경되었으면 데이터 다시 분석
+    analyzeVisitorData(selectedRoom);
 
     setShowSaveModal(true);
   };
@@ -496,6 +535,12 @@ export default function Dashboard({ onClose, onSave }) {
     const femalePercent = total > 0 ? Math.round((visitorStats.gender.female / total) * 100) : 0;
     const maleDegree = total > 0 ? (visitorStats.gender.male / total) * 360 : 0;
     
+    const isMobileDevice = device === 'mobile';
+    const chartSize = isMobileDevice ? 140 : 180;
+    const innerSize = isMobileDevice ? 100 : 130;
+    const gap = isMobileDevice ? '20px' : '40px';
+    const padding = isMobileDevice ? '16px' : '24px';
+    
     return (
       <div style={styles.chartContainer}>
         <div style={styles.chartTitle}>성별 분포</div>
@@ -503,10 +548,11 @@ export default function Dashboard({ onClose, onSave }) {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center', 
-          gap: '40px', 
-          padding: '24px'
+          gap: gap, 
+          padding: padding,
+          flexWrap: 'wrap'
         }}>
-          <div style={{ position: 'relative', width: '180px', height: '180px' }}>
+          <div style={{ position: 'relative', width: `${chartSize}px`, height: `${chartSize}px`, flexShrink: 0 }}>
             <div
               style={{
                 width: '100%',
@@ -521,8 +567,8 @@ export default function Dashboard({ onClose, onSave }) {
             >
               <div
                 style={{
-                  width: '130px',
-                  height: '130px',
+                  width: `${innerSize}px`,
+                  height: `${innerSize}px`,
                   borderRadius: '50%',
                   backgroundColor: 'white',
                   display: 'flex',
@@ -531,47 +577,47 @@ export default function Dashboard({ onClose, onSave }) {
                   flexDirection: 'column'
                 }}
               >
-                <div style={{ fontSize: '28px', fontWeight: '800', color: RAIM_COLORS.DARK }}>
+                <div style={{ fontSize: isMobileDevice ? '22px' : '28px', fontWeight: '800', color: RAIM_COLORS.DARK }}>
                   {total}명
                 </div>
-                <div style={{ fontSize: '14px', color: RAIM_COLORS.MUTED }}>
+                <div style={{ fontSize: isMobileDevice ? '12px' : '14px', color: RAIM_COLORS.MUTED }}>
                   Total
                 </div>
               </div>
             </div>
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobileDevice ? '12px' : '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobileDevice ? '10px' : '15px' }}>
               <div style={{
-                width: '28px',
-                height: '28px',
+                width: isMobileDevice ? '22px' : '28px',
+                height: isMobileDevice ? '22px' : '28px',
                 borderRadius: '6px',
                 backgroundColor: RAIM_COLORS.DARK,
                 flexShrink: 0
               }} />
               <div>
-                <div style={{ fontSize: '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
+                <div style={{ fontSize: isMobileDevice ? '15px' : '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
                   남성
                 </div>
-                <div style={{ fontSize: '15px', color: RAIM_COLORS.MUTED }}>
+                <div style={{ fontSize: isMobileDevice ? '13px' : '15px', color: RAIM_COLORS.MUTED }}>
                   {visitorStats.gender.male}명 ({malePercent}%)
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobileDevice ? '10px' : '15px' }}>
               <div style={{
-                width: '28px',
-                height: '28px',
+                width: isMobileDevice ? '22px' : '28px',
+                height: isMobileDevice ? '22px' : '28px',
                 borderRadius: '6px',
                 backgroundColor: RAIM_COLORS.MEDIUM,
                 flexShrink: 0
               }} />
               <div>
-                <div style={{ fontSize: '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
+                <div style={{ fontSize: isMobileDevice ? '15px' : '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
                   여성
                 </div>
-                <div style={{ fontSize: '15px', color: RAIM_COLORS.MUTED }}>
+                <div style={{ fontSize: isMobileDevice ? '13px' : '15px', color: RAIM_COLORS.MUTED }}>
                   {visitorStats.gender.female}명 ({femalePercent}%)
                 </div>
               </div>
@@ -587,30 +633,35 @@ export default function Dashboard({ onClose, onSave }) {
       <div style={styles.dashboardModal}>
         <div style={styles.dashboardHeader}>
           <h2 style={styles.dashboardTitle}>
-            <Settings size={34} />
+            <Settings size={25} />
             관리자 대시보드
           </h2>
           <button style={styles.closeButton} onClick={onClose}>
-            <X size={28} />
+            <X size={25} />
           </button>
         </div>
 
         <div style={styles.gridContainer}>
           {/* 오늘의 입장객 수 */}
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>
-              <div style={styles.iconWrapper}>
-                <Users size={24} />
-              </div>
-              오늘의 입장 현황
-            </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', boxSizing: 'border-box', width: '100%', maxWidth: '100%', minWidth: 0 }}>
             <div style={styles.statsCard}>
-              <Calendar size={42} color="rgba(255,255,255,0.8)" style={{ marginBottom: '18px' }} />
-              <div style={styles.statsNumber}>{todayCount.toLocaleString()}</div>
-              <div style={styles.statsLabel}>오늘의 누적 입장객 수</div>
+              <div style={styles.statsContent}>
+                <div style={styles.statsLabel}>
+                  {selectedRoom ? `${selectedRoom} - 오늘의 누적 입장객` : '오늘의 누적 입장객 수'}
+                </div>
+                <div style={styles.statsNumber}>{todayCount.toLocaleString()}명</div>
+              </div>
+              <Calendar size={device === 'mobile' ? 50 : 60} color="white" style={styles.statsIcon} />
             </div>
-            <div style={styles.infoText}>
-              오늘 등록된 모든 방문객 데이터는 Firebase에 저장됩니다.
+            <div style={{ 
+              fontSize: device === 'mobile' ? '11px' : '13px', 
+              color: RAIM_COLORS.MUTED, 
+              textAlign: 'center', 
+              lineHeight: '1.4', 
+              padding: '0 8px' 
+            }}>
+              기기 임시 저장 데이터입니다.<br />
+              정확한 전체 데이터는 Firebase 또는 엑셀을 확인하세요.
             </div>
           </div>
 
@@ -627,7 +678,7 @@ export default function Dashboard({ onClose, onSave }) {
               <GenderChart />
             </div>
             <div style={styles.infoText}>
-              오늘 등록된 방문객의 연령대와 성별 분포를 시각화합니다.
+              오늘 {selectedRoom ? `${selectedRoom} ` : ''}방문객의 분포입니다.
             </div>
           </div>
         </div>
@@ -663,7 +714,7 @@ export default function Dashboard({ onClose, onSave }) {
               />
             </div>
             <div style={styles.infoText}>
-              데이터 저장 시 이 관람실 정보가 함께 저장됩니다.
+              방문객 데이터에 관람실 정보가 함께 저장됩니다.
             </div>
           </div>
           <div style={styles.formGroup}>

@@ -36,7 +36,7 @@ const getStyles = (device) => {
       fontWeight: '700', color: RAIM_COLORS.MUTED 
     },
     toggleButton: { 
-      flex: 1, padding: pick({ mobile: '12px', tabletA9: '40px', desktop: '38px' }), 
+      flex: 1, padding: pick({ mobile: '20px', tabletA9: '40px', desktop: '38px' }), 
       fontSize: pick({ mobile: '16px', tabletA9: '30px', desktop: '25px' }), 
       border: pick({ mobile: `1px solid ${RAIM_COLORS.DARK}50`, tabletA9: `2px solid ${RAIM_COLORS.DARK}50`, desktop: `2px solid ${RAIM_COLORS.DARK}50` }), borderRadius: pick({ mobile: '10px', tabletA9: '12px', desktop: '12px' }), 
       cursor: 'pointer', fontWeight: '600', backgroundColor: 'white', 

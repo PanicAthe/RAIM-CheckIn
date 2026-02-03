@@ -47,6 +47,22 @@ function App() {
   const styles = getStyles(device);
 
   useEffect(() => {
+    // 과거 날짜 데이터 삭제
+    const today = new Date();
+    const todayStr = today.toDateString();
+    const keys = Object.keys(localStorage);
+    
+    keys.forEach(key => {
+      if (key.startsWith('visitorCount_') || key.startsWith('todayVisitors_')) {
+        const dateStr = key.split('_').slice(1).join('_');
+        
+        if (dateStr !== todayStr) {
+          console.log(`과거 데이터 삭제: ${key}`);
+          localStorage.removeItem(key);
+        }
+      }
+    });
+    
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
       setShowRoomSetup(true);
@@ -80,23 +96,21 @@ function App() {
       }
     };
     loadModels();
-  }, [isAdminLocked, showDashboard, showRoomSetup]);
+  }, [isAdminLocked, showRoomSetup, showDashboard]);
 
   useEffect(() => {
-    if (showDashboard) {
+    if (showDashboard || isAdminLocked || showRoomSetup) {
       stopVideo();
     } else if (isModelLoaded && isAIMode) {
       startVideo();
     }
-  }, [showDashboard, isModelLoaded, isAIMode]);
-
-  useEffect(() => {
-    if (isAIMode && isModelLoaded && !showDashboard) {
-      startVideo();
-    } else {
-      stopVideo();
-    }
-  }, [isAIMode, isModelLoaded, showDashboard]);
+    
+    return () => {
+      if (showDashboard || isAdminLocked || showRoomSetup) {
+        stopVideo();
+      }
+    };
+  }, [showDashboard, isModelLoaded, isAIMode, isAdminLocked, showRoomSetup]);
 
   const startVideo = () => {
     navigator.mediaDevices.getUserMedia({ 
@@ -135,6 +149,9 @@ function App() {
       canvasRef.current = null;
       if (scanDebounceRef.current) {
         clearTimeout(scanDebounceRef.current);
+      }
+      if (logoClickTimeoutRef.current) {
+        clearTimeout(logoClickTimeoutRef.current);
       }
     };
   }, []);
@@ -299,7 +316,8 @@ function App() {
       localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
       
       const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
-      existingVisitors.push(...scannedVisitors);
+      const visitorsWithRoom = scannedVisitors.map(v => ({ ...v, location: roomLocation }));
+      existingVisitors.push(...visitorsWithRoom);
       localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
       
       setLastCount(scannedVisitors.length);
@@ -422,7 +440,8 @@ function App() {
       localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
       
       const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
-      existingVisitors.push(...visitors);
+      const visitorsWithRoom = visitors.map(v => ({ ...v, location: roomLocation }));
+      existingVisitors.push(...visitorsWithRoom);
       localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
       
       setLastCount(currentCount);
