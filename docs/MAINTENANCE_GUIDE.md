@@ -6,20 +6,19 @@
 ### 일일 (5분)
 
 - 웹사이트 접속 확인
-- Gmail 오류 알림 확인
+- Gmail 오류 알림 확인 (오류 알림이 왔다면 보수)
 - Google Sheets 데이터 추가 확인
 
 ### 주간 (20분)
 
 - Firebase 콘솔 → 사용량 확인 (목표: 40% 미만)
 - Apps Script → 실행 로그 확인
-- Google Sheets 행 수 확인
+- Google Sheets 데이터 추가 확인
 
 ### 월간 (1시간)
 
-- 트리거 간격 최적화 (필요시)
+- 트리거 간격 최적화 (필요시 선택 사항)
 - 데이터 백업 (Google Sheets → CSV 다운로드)
-- 성능 리포트 정리
 
 ### 분기별 (2시간, 보안을 위한 선택 사항)
 
@@ -127,25 +126,9 @@
 
 ### 데이터 보관
 
-- localStorage: 1일 (일일 통계)
+- 기기 localStorage: 1일 (일일 통계)
 - Firestore: 설정된 간격 (3-12시간)
 - Google Sheets: 무제한 (영구 기록)
-
----
-
-## 보안 관리
-
-### 월간 확인사항
-
-- 비밀번호 변경 여부 확인
-- Firestore 규칙 검토
-- ALERT_EMAIL 설정 정상 여부
-
-### 분기별 갱신
-
-- 관리자 비밀번호 변경
-- Firebase 서비스 계정 키 갱신
-- Vercel 환경 변수 검토
 
 ---
 
@@ -160,7 +143,7 @@
 1. Apps Script → 실행 로그 확인
 2. 오류 메시지 확인
 
-**해결**:
+**해결 방법**:
 
 ```jsx
 // Apps Script에서 backupAndDelete 수동 실행
@@ -171,7 +154,7 @@
 
 **원인**: 트래픽 증가
 
-**해결**:
+**해결 방법**:
 
 1. 현재 일일 방문자 수 확인
 2. Apps Script 대시보드 → 트리거 수정, 간격 단축
@@ -185,7 +168,7 @@
 1. Vercel 대시보드 → Deployments
 2. 빌드 로그 확인
 
-**해결**:
+**해결 방법**:
 
 ```bash
 # 로컬에서 빌드 테스트
@@ -206,7 +189,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /visitors/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;  
       allow delete: if false;
     }
   }
@@ -225,7 +208,7 @@ service cloud.firestore {
 2. Apps Script 로그 검토
 3. Firebase 콘솔에서 상태 확인
 4. 이 문서의 **문제 해결** 목차 참고
-5. 해결 안 되면 각 서비스 공식 문서 확인
+5. 해결 안 되면 각 서비스 공식 문서 확인 or [panciathe@naver.com](mailto:panciathe@naver.com) 연락주세요
 
 **유용한 링크:**
 

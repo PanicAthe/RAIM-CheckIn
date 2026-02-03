@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as faceapi from 'face-api.js';
 import logoImg from './assets/logo.png';
@@ -38,7 +38,10 @@ function App() {
   const [scannedVisitors, setScannedVisitors] = useState([]);
 
   const [manualGender, setManualGender] = useState('male');
-  const [manualGroup, setManualGroup] = useState('유아');
+  const [manualGroup, setManualGroup] = useState(() => {
+    // Import에서 가져온 ageGroups의 첫 번째 항목 사용
+    return '유아'; // ageGroups[0].label과 동일
+  });
   const [isAIMode, setIsAIMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const logoClickTimeoutRef = useRef(null);
@@ -98,6 +101,28 @@ function App() {
     loadModels();
   }, [isAdminLocked, showRoomSetup, showDashboard]);
 
+  const startVideo = useCallback(() => {
+    navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode: 'user',
+        width: { ideal: 720, max: 960 },
+        height: { ideal: 540, max: 720 }
+      } 
+    })
+      .then((stream) => { 
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      })
+      .catch((err) => console.error("카메라 에러:", err));
+  }, []);
+
+  const stopVideo = useCallback(() => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (showDashboard || isAdminLocked || showRoomSetup) {
       stopVideo();
@@ -110,29 +135,7 @@ function App() {
         stopVideo();
       }
     };
-  }, [showDashboard, isModelLoaded, isAIMode, isAdminLocked, showRoomSetup]);
-
-  const startVideo = () => {
-    navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        facingMode: 'user',
-        width: { ideal: 720, max: 960 },
-        height: { ideal: 540, max: 720 }
-      } 
-    })
-      .then((stream) => { 
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch((err) => console.error("카메라 에러:", err));
-  };
-
-  const stopVideo = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-  };
+  }, [showDashboard, isModelLoaded, isAIMode, isAdminLocked, showRoomSetup, startVideo, stopVideo]);
 
   useEffect(() => {
     return () => {
@@ -196,7 +199,7 @@ function App() {
   };
 
 
-  const scanFaces = async () => {
+  const scanFaces = useCallback(async () => {
     if (!videoRef.current || !isModelLoaded || isScanning) return;
     
     if (scanDebounceRef.current) {
@@ -206,6 +209,8 @@ function App() {
     setIsScanning(true);
 
     let canvas = null;
+    let isCancelled = false;
+    
     try {
       const savedCorrection = localStorage.getItem('ageCorrection');
       const ageCorrection = savedCorrection ? parseInt(savedCorrection, 10) : 4;
@@ -243,12 +248,15 @@ function App() {
         .withFaceLandmarks(true)
         .withAgeAndGender();
 
+      // 컴포넌트가 언마운트되었는지 확인
+      if (isCancelled) return;
+
       if (detections.length === 0) {
         setErrorMessage('얼굴을 찾을 수 없습니다.\n카메라 각도와 조명을 확인해주세요.');
         setShowErrorModal(true);
       } else {
-        const newVisitors = detections.map((d, idx) => ({
-          id: Date.now() + idx,
+        const newVisitors = detections.map((d) => ({
+          id: Date.now() + Math.random(), // 고유 ID 생성 개선
           ageGroup: convertToGroup(d.age, ageCorrection),
           gender: d.gender,
           source: 'AI'
@@ -259,15 +267,23 @@ function App() {
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
+      if (isCancelled) return;
       console.error(error);
       setErrorMessage('스캔 실패.\n다시 시도해주세요.');
       setShowErrorModal(true);
     } finally {
-      scanDebounceRef.current = setTimeout(() => {
-        setIsScanning(false);
-      }, 300);
+      if (!isCancelled) {
+        scanDebounceRef.current = setTimeout(() => {
+          setIsScanning(false);
+        }, 300);
+      }
     }
-  };
+    
+    // Cleanup 함수
+    return () => {
+      isCancelled = true;
+    };
+  }, [isModelLoaded, isScanning]);
 
   const handleScanConfirm = async () => {
     if (scannedVisitors.length === 0) return;
@@ -366,20 +382,15 @@ function App() {
     setIsAIMode((prev) => !prev);
   };
 
-  const addManualVisitor = (visitorData) => {
-    const isValidVisitorData = visitorData && 
-      typeof visitorData === 'object' && 
-      !visitorData.nativeEvent && 
-      (visitorData.ageGroup || visitorData.gender);
-    
-    const newVisitor = isValidVisitorData ? visitorData : {
+  const addManualVisitor = useCallback(() => {
+    const newVisitor = {
       id: Date.now() + Math.random(),
       ageGroup: manualGroup,
       gender: manualGender,
       source: 'Manual'
     };
     setVisitors(prev => [...prev, newVisitor]);
-  };
+  }, [manualGroup, manualGender]);
 
   const removeVisitor = (id) => {
     setVisitors(prev => prev.filter(v => v.id !== id));

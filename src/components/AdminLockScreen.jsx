@@ -93,6 +93,9 @@ const getLockStyles = (device) => {
       transform: 'translateY(-50%)',
       pointerEvents: 'none',
       zIndex: 1
+    },
+    logoImage: {
+      height: pick({ mobile: '78px', tablet: '90px', tabletA9: '96px', desktop: '100px' })
     }
   };
 };
@@ -177,19 +180,9 @@ export default function AdminLockScreen({ onUnlock }) {
           </button>
         </form>
         <div style={styles.footer}>
-          <img src={logoImg} alt="Logo" style={{height: pickHeight(device)}} />
+          <img src={logoImg} alt="Logo" style={styles.logoImage} />
         </div>
       </div>
     </div>
   );
-}
-
-function pickHeight(device) {
-  const map = {
-    mobile: '78px',
-    tablet: '90px',
-    tabletA9: '96px',
-    desktop: '100px'
-  };
-  return map[device] || '100px';
 }
