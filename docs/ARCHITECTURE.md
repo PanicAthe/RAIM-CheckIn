@@ -115,26 +115,26 @@ sequenceDiagram
     Main->>Face: AI 모드: 얼굴 감지 요청
     Face-->>Main: 성별, 연령대 반환
     Main->>Main: 스캔 확인 모달 표시
-    Main->>Main: 확인 또는 수정 선택
-    Main->>Main: 방문자 리스트에 추가
+    Main->>Main: "확인" 선택: 즉시 Firestore 전송<br/>"수정" 선택: 방문자 리스트 추가
     Main->>Main: 또는 수동 모드로 직접 입력
-    Main->>Local: 방문자 리스트 데이터 임시 저장
+    Main->>Local: 방문자 데이터 저장 (일일 통계용)
     end
     
     rect rgb(255, 230, 200)
     Note over Local,Firestore: 4. Firestore 전송
-    User->>Main: 완료 버튼 클릭
+    User->>Main: 완료 버튼 클릭 또는 스캔 확인 모달의 확인
     Main->>Firestore: 모든 데이터 일괄 전송
     Firestore-->>Main: 저장 완료
-    Main->>Local: 전송 완료 후 로컬 데이터 유지<br/>(일일 통계용)
+    Main->>Local: 전송 성공 후도 데이터 유지<br/>(일일 통계용, 과거 날짜는 앱 시작시 삭제)
     end
     
     rect rgb(240, 255, 240)
     Note over Main,Dashboard: 5. 관리자 대시보드 접근
     User->>Logo: 로고 3번 터치
     Logo->>Dashboard: 대시보드 열림
-    Dashboard->>Local: 일일 통계 조회
-    Local-->>Dashboard: 오늘 데이터 반환
+    Dashboard->>Local: 일일 통계 조회 (관람실별 필터링)
+    Local-->>Dashboard: 오늘 데이터 반환 (localStorage만)
+    Note over Dashboard: Firestore 조회 없음<br/>기기별 임시 데이터만 표시
     end
     
     rect rgb(230, 200, 230)
@@ -177,7 +177,7 @@ stateDiagram-v2
     직접_입력 --> 방문자_리스트: 추가 버튼
     
     스캔_확인_모달 --> Firestore_전송: 확인 (즉시 전송)
-    스캔_확인_모달 --> 방문자_리스트: 수정 (리스트 추가)
+    스캔_확인_모달 --> 방문자_리스트: 수정 (리스트 추가, 수동 모드 전환)
     스캔_확인_모달 --> AI_모드: 취소
     
     방문자_리스트 --> localStorage_저장: 임시 저장
@@ -304,25 +304,3 @@ graph TB
     style PROD_DEPLOY fill:#c8e6c9
     style EDGE fill:#a5d6a7
 ```
-
----
-
-## 주요 특징
-
-### 확장성
-- 일일 1,000~3,000명 트래픽 처리 가능
-- 트리거 간격 조정으로 유연한 대응 (1/3/6/12시간)
-
-### 안정성
-- 데이터 손실 0% (백업 후 삭제 원칙)
-- 타임아웃 시 부분 백업 모드로 자동 전환
-- 오류 발생 시 이메일 자동 알림
-
-### 비용 효율성
-- 총 운영비 0원/월 (무료 티어만 사용)
-- 무료 한도 사용률 40% 미만 (3시간 트리거 기준)
-
-### 배포 효율성
-- Git push 시 자동 배포 (1~2분)
-- 글로벌 CDN을 통한 빠른 배포
-- Preview URL로 PR 검증 가능
