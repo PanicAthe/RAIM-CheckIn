@@ -294,6 +294,84 @@ function resetAuth() {
 }
 
 /**
+ * 7. 웹 앱 API 엔드포인트 (비동기 처리)
+ */
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    
+    if (action === 'backup') {
+      if (!validateConfig()) {
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: false, 
+          error: "설정값 검증 실패" 
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // 백업 작업 실행 (즉시 응답 반환)
+      // 웹 앱 응답은 논블로킹이므로 한 후 즉시 반환
+      try {
+        // backupAndDelete() 함수 호출 (비동기 완료를 기다리지 않음)
+        // Apps Script는 함수 호출을 스케줄하지만 실제 실행은 런타임에 위임
+        backupAndDelete();
+        
+        Logger.log('✓ 웹 앱을 통한 백업 트리거 성공 - ' + new Date().toISOString());
+        
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: true, 
+          message: "백업 및 삭제 작업이 시작되었습니다. 처리 완료까지 1-3분이 소요될 수 있습니다.",
+          actionId: Utilities.getUuid(),
+          timestamp: new Date().toISOString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (backupError) {
+        Logger.log('✗ 백업 작업 중 오류: ' + backupError.message + ' (스택: ' + backupError.stack + ')');
+        
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: false, 
+          error: "백업 작업 실행 중 오류: " + backupError.message,
+          timestamp: new Date().toISOString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    
+    if (action === 'health') {
+      // 헬스체크 - 배포 유효성 및 설정 확인
+      try {
+        const config = validateConfig();
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: true, 
+          message: "앱 스크립트 웹 앱이 정상 작동 중입니다",
+          configStatus: "유효함",
+          timestamp: new Date().toISOString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (healthError) {
+        return ContentService.createTextOutput(JSON.stringify({ 
+          success: false, 
+          message: "앱 스크립트 헬스체크 실패",
+          error: healthError.message,
+          timestamp: new Date().toISOString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    
+    // 미지원 요청
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false, 
+      error: "지원하지 않는 요청입니다. action=backup 또는 action=health를 사용하세요.",
+      timestamp: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    Logger.log('✗ doGet 전체 오류: ' + error.message + ' (스택: ' + error.stack + ')');
+    
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
  * 🔥 자동화 설정 필수 🔥
  * 
  * ============================================================
@@ -361,3 +439,4 @@ function resetAuth() {
  * ※ 몇 년 동안 자동 작동합니다. 설정 완료 후 1주일 동안만 
  *    로그를 모니터링하면 됩니다!
  */
+

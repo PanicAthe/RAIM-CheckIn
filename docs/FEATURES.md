@@ -4,11 +4,7 @@
 
 **작성일**: 2026-01-28
 
-**수정일**: 2026-02-03
-
-**대상**: 개발자, 테스터, 운영자
-
-**관련 문서**: [요구사항 명세서](https://www.notion.so/SRS-2f51b986cb978005a52edb12229ad618?pvs=21) | [시스템 아키텍처](https://www.notion.so/2f61b986cb9780b9b26bc5251fa6a5ac?pvs=21) | [유지보수 가이드](https://www.notion.so/2f61b986cb9780c5a898fe360c73d1cf?pvs=21)| [설치 및 배포 가이드](https://www.notion.so/2f61b986cb9780d1ac08f65d2acb7a61?pvs=21)|
+**수정일**: 2026-02-04
 
 ---
 
@@ -26,20 +22,21 @@
         D["🔥 Firestore<br/>(빠른 저장)"]
         E["⚙️ Apps Script<br/>(자동 백업)"]
         F["📊 Google Sheets<br/>(장기 보관)"]
-        
+    
         A -->|카메라/수동 입력| B
         B -->|완료 버튼<br/>임시 저장| C
         B -->|완료 버튼<br/>데이터 전송| D
         C -->|대시보드<br/>통계 조회| C
         D -->|3시간마다<br/>자동 읽기 & 삭제| E
         E -->|백업| F
-        
+    
         style A fill:#e3f2fd
         style B fill:#fff3e0
         style C fill:#fff9c4
         style D fill:#f3e5f5
         style E fill:#fce4ec
         style F fill:#e8f5e9
+    
     ```
     
 
@@ -206,6 +203,18 @@
         - 입력된 커스텀 관람실 이름은 데이터 전송에 사용됨
     - 나이 보정값 조정 (-10 ~ +10, 슬라이더)
     - 설정 저장 (localStorage)
+- **데이터 백업 및 삭제** (새로운 기능)
+    - 별도 섹션 (빨간 테마로 위험도 표시)
+    - "지금 백업 및 삭제 실행" 버튼
+    - 기능:
+      - Firebase Firestore의 모든 방문객 데이터를 Google Sheets로 자동 백업
+      - 백업 완료 후 Firestore 데이터 자동 삭제
+      - 2단계 확인 모달로 실수 방지
+    - 상태 피드백:
+      - 로딩 중: 스피너 아이콘 표시
+      - 성공: 녹색 메시지 표시
+      - 오류: 빨간색 에러 메시지 표시
+    - 접근: Google Apps Script doGet() 함수와 연동
 - **데이터 소스 안내**
     - "기기 임시 저장 데이터입니다"
     - "정확한 전체 데이터는 Firebase 또는 엑셀을 확인하세요"
@@ -309,7 +318,7 @@ visitors/
 
 **응답 시간**: 1초 이내
 
-**오류 처리**: 네트워크 오류 시 3회 재시도
+**오류 처리**: 네트워크 오류 시 재시도 버튼 제공 (ErrorModal)
 
 ### 3.3 권한 관리
 
@@ -334,7 +343,7 @@ visitors/
 
 - 트리거: 사용자 설정 간격 (1/3/6/12시간)
 - 실행 시간 제한: 6분 이내
-- 타임아웃 시: 부분 백업 모드 전환
+- 타임아웃 시: 작업 중단 후 오류 알림 (로그/이메일)
 
 **처리 흐름**:
 
@@ -377,7 +386,7 @@ Apps Script 편집기:
 ```jsx
 // Firebase 서비스 계정 정보 (Firebase 콘솔에서 생성)
 const CLIENT_EMAIL = "your-firebase-adminsdk@....iam.gserviceaccount.com";
-const PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n";
+const PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\\\\n...\\\\n-----END PRIVATE KEY-----\\\\n";
 const PROJECT_ID = "your-firebase-project-id";
 
 // Firestore 및 Sheets 설정
@@ -605,6 +614,6 @@ Apps Script 편집기:
 
 ### 5.3 복구 전략
 
-- **자동 복구**: 부분 백업 모드 (타임아웃 시)
+- **자동 복구**: 없음 (타임아웃 시 오류 알림 후 수동 재시도)
 - **수동 복구**: Apps Script 수동 재실행
 - **데이터 안전**: 백업 전 삭제 하지 않음

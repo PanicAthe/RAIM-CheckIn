@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as faceapi from 'face-api.js';
 import logoImg from './assets/logo.png';
@@ -15,6 +15,10 @@ import VisitorList from './components/VisitorList';
 import Dashboard from './components/Dashboard';
 import ScanConfirmModal from './components/ScanConfirmModal';
 import LanguageToggle from './components/LanguageToggle';
+
+// 변환 맵 상수화 (메모리 절약 및 성능 최적화)
+const GENDER_MAP = { 'male': '남성', 'female': '여성' };
+const SOURCE_MAP = { 'Manual': '수동', 'AI': 'AI' };
 
 function App() {
   const { t } = useTranslation();
@@ -47,22 +51,20 @@ function App() {
   const logoClickTimeoutRef = useRef(null);
 
   const { isMobile, isTablet, device } = useIsMobile();
-  const styles = getStyles(device);
+  const styles = useMemo(() => getStyles(device), [device]);
 
   useEffect(() => {
-    // 과거 날짜 데이터 삭제
+    // 과거 날짜 데이터 삭제 (정규표현식으로 최적화)
     const today = new Date();
     const todayStr = today.toDateString();
     const keys = Object.keys(localStorage);
+    const dataKeyRegex = /^(visitorCount|todayVisitors)_/;
     
-    keys.forEach(key => {
-      if (key.startsWith('visitorCount_') || key.startsWith('todayVisitors_')) {
-        const dateStr = key.split('_').slice(1).join('_');
-        
-        if (dateStr !== todayStr) {
-          console.log(`과거 데이터 삭제: ${key}`);
-          localStorage.removeItem(key);
-        }
+    keys.filter(key => dataKeyRegex.test(key)).forEach(key => {
+      const dateStr = key.split('_').slice(1).join('_');
+      
+      if (dateStr !== todayStr) {
+        localStorage.removeItem(key);
       }
     });
     
@@ -397,13 +399,10 @@ function App() {
   };
 
   const formatVisitorData = (visitors) => {
-    const genderMap = { 'male': '남성', 'female': '여성' };
-    const sourceMap = { 'Manual': '수동', 'AI': 'AI' };
-    
     return visitors.map(visitor => ({
       ...visitor,
-      gender: genderMap[visitor.gender] || visitor.gender,
-      source: sourceMap[visitor.source] || visitor.source,
+      gender: GENDER_MAP[visitor.gender] || visitor.gender,
+      source: SOURCE_MAP[visitor.source] || visitor.source,
       ageGroup: AGE_GROUP_LABELS[visitor.ageGroup] || visitor.ageGroup
     }));
   };

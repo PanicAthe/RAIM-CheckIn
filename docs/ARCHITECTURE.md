@@ -24,7 +24,7 @@ graph TB
     end
     
     subgraph "관리자 기능"
-        ADMIN["관리자 대시보드<br/>일일 통계<br/>설정 관리"]
+        ADMIN["관리자 대시보드<br/>일일 통계<br/>설정 관리<br/>수동 백업"]
     end
     
     subgraph "AI/ML 계층"
@@ -37,7 +37,7 @@ graph TB
     end
     
     subgraph "자동화 계층"
-        APPS["Google Apps Script<br/>자동 스케줄러<br/>3시간마다"]
+        APPS["Google Apps Script<br/>자동 스케줄러<br/>설정 간격"]
         FUNC1["데이터 조회"]
         FUNC2["Sheets 백업"]
         FUNC3["안전한 삭제"]
@@ -129,16 +129,28 @@ sequenceDiagram
     end
     
     rect rgb(240, 255, 240)
-    Note over Main,Dashboard: 5. 관리자 대시보드 접근
+    Note over Main,Dashboard: 5. 관리자 대시보드 접근 및 수동 백업
     User->>Logo: 로고 3번 터치
     Logo->>Dashboard: 대시보드 열림
     Dashboard->>Local: 일일 통계 조회 (관람실별 필터링)
     Local-->>Dashboard: 오늘 데이터 반환 (localStorage만)
     Note over Dashboard: Firestore 조회 없음<br/>기기별 임시 데이터만 표시
+    
+    alt 수동 백업 필요 시
+        Dashboard->>Dashboard: "백업 및 삭제 실행" 버튼 클릭
+        Dashboard->>Dashboard: 2단계 확인 모달 표시
+        User->>Dashboard: "실행하기" 선택
+        Dashboard->>Apps: GET 요청 전송<br/>(CORS 안전)
+        Apps->>Firestore: 모든 데이터 조회
+        Apps->>Sheets: 즉시 백업
+        Apps->>Firestore: 즉시 삭제
+        Apps-->>Dashboard: 결과 반환
+        Dashboard->>Dashboard: 성공/오류 메시지 표시
+    end
     end
     
     rect rgb(230, 200, 230)
-    Note over Firestore,Sheets: 6. 자동 백업 (3시간마다)
+    Note over Firestore,Sheets: 6. 자동 백업 (설정 간격마다)
     Apps->>Firestore: 모든 데이터 조회
     Firestore-->>Apps: 데이터 반환
     Apps->>Sheets: 백업 저장
@@ -190,6 +202,11 @@ stateDiagram-v2
     터치_카운트 --> 관리자_대시보드: 3회 달성
     관리자_대시보드 --> 일일_통계: localStorage 조회
     관리자_대시보드 --> 설정_관리: 관람실/나이보정
+    관리자_대시보드 --> 수동_백업: 백업 버튼 클릭
+    수동_백업 --> 확인_모달: 2단계 확인
+    확인_모달 --> Apps_Script: "실행하기" 선택
+    Apps_Script --> 백업_완료: 즉시 백업 및 삭제
+    백업_완료 --> 관리자_대시보드: 결과 표시
     관리자_대시보드 --> 메인_화면: 닫기
 
     터치_카운트 --> 메인_화면: 타임아웃
@@ -258,41 +275,3 @@ erDiagram
     VISITORS ||--|{ SHEETS_BACKUP : "백업"
 ```
 
----
-
-## 6. 배포 환경 다이어그램
-
-```mermaid
-graph TB
-    subgraph "개발 환경"
-        DEVENV["로컬 머신<br/>npm run dev"]
-    end
-    
-    subgraph "스테이징 (Preview)"
-        PR["Pull Request"]
-        PREVIEW["Vercel Preview URL<br/>임시 배포"]
-    end
-    
-    subgraph "프로덕션 환경"
-        MAIN["Main Branch"]
-        PROD_DEPLOY["Vercel Production<br/>프로덕션 배포"]
-        EDGE["Vercel Edge Network<br/>CDN 글로벌 배포"]
-    end
-    
-    subgraph "백엔드 서비스"
-        FIRESTORE_DEV["Firebase Dev Project<br/>테스트용"]
-        FIRESTORE_PROD["Firebase Prod Project<br/>운영용"]
-    end
-    
-    DEVENV -->|테스트| FIRESTORE_DEV
-    PR --> PREVIEW
-    PREVIEW -->|테스트| FIRESTORE_DEV
-    MAIN --> PROD_DEPLOY
-    PROD_DEPLOY --> EDGE
-    EDGE -->|API 요청| FIRESTORE_PROD
-    
-    style DEVENV fill:#e1f5fe
-    style PREVIEW fill:#fff9c4
-    style PROD_DEPLOY fill:#c8e6c9
-    style EDGE fill:#a5d6a7
-```

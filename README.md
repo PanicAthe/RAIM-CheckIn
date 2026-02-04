@@ -28,6 +28,10 @@
   - 기본 관람실 목록에서 선택
   - 커스텀 관람실 직접 입력 (대시보드에서만 가능)
 - 나이 보정값 조절 (-10 ~ +10)
+- **데이터 백업 및 삭제**: Firebase Firestore의 모든 데이터를 엑셀로 백업하고 자동 삭제
+  - 관리자 대시보드에서 수동 실행 가능
+  - Google Apps Script와 연동
+  - GET 기반 CORS 안전 호출
 - 로고 3번 탭으로 진입 (다국어 미지원)
 
 ## 기술 스택
@@ -82,7 +86,12 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 VITE_ADMIN_PIN=0000
+VITE_GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/XXXX/exec
 ```
+
+**백업 기능 사용 시 추가 설정:**
+- `VITE_GOOGLE_APPS_SCRIPT_URL`: Google Apps Script 웹 앱 배포 URL
+- 수동 백업 버튼이 필요 없으면 설정하지 않아도 됩니다
 
 **Firebase 프로젝트 설정 방법:**
 

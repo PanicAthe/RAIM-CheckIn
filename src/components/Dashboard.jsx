@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown, Edit3 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown, Edit3, Database, AlertTriangle, Loader } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { RAIM_COLORS, ageGroups, roomLocations } from '../constants';
 
@@ -353,6 +353,114 @@ const getStyles = (device) => {
     cursor: 'pointer',
     minWidth: '120px',
     boxShadow: '0 6px 16px rgba(0, 68, 139, 0.25)'
+  },
+  backupSection: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: pick({ mobile: '16px', tablet: '18px', tabletA9: '20px', desktop: '20px' }),
+    padding: pick({ mobile: '20px', tablet: '26px', tabletA9: '28px', desktop: '30px' }),
+    marginBottom: pick({ mobile: '30px', tablet: '50px', tabletA9: '14px', desktop: '16px' }),
+    border: `2px solid #FCA5A5`,
+    borderTop: `4px solid #DC2626`,
+    boxSizing: 'border-box',
+    width: '100%',
+    maxWidth: '100%'
+  },
+  backupTitle: {
+    fontSize: pick({ mobile: '18px', tablet: '20px', tabletA9: '21px', desktop: '22px' }),
+    color: '#DC2626',
+    fontWeight: '700',
+    marginBottom: pick({ mobile: '12px', tablet: '16px', tabletA9: '18px', desktop: '20px' }),
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  backupDescription: {
+    fontSize: pick({ mobile: '14px', tablet: '15px', tabletA9: '16px', desktop: '16px' }),
+    color: '#7F1D1D',
+    marginBottom: pick({ mobile: '18px', tablet: '20px', tabletA9: '22px', desktop: '24px' }),
+    lineHeight: '1.6'
+  },
+  backupButton: {
+    width: '100%',
+    padding: pick({ mobile: '16px', tablet: '18px', tabletA9: '20px', desktop: '20px' }),
+    background: '#DC2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: pick({ mobile: '14px', tablet: '16px', tabletA9: '18px', desktop: '18px' }),
+    fontSize: pick({ mobile: '16px', tablet: '17px', tabletA9: '18px', desktop: '18px' }),
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.3s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: pick({ mobile: '8px', tablet: '10px', tabletA9: '10px', desktop: '12px' }),
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+    minHeight: pick({ mobile: '50px', tablet: '58px', tabletA9: '60px', desktop: '62px' })
+  },
+  confirmModal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1100,
+    padding: pick({ mobile: '12px', tablet: '14px', tabletA9: '16px', desktop: '18px' }),
+    boxSizing: 'border-box'
+  },
+  confirmCard: {
+    backgroundColor: 'white',
+    borderRadius: pick({ mobile: '20px', tablet: '22px', tabletA9: '24px', desktop: '24px' }),
+    padding: pick({ mobile: '28px', tablet: '32px', tabletA9: '34px', desktop: '36px' }),
+    width: '100%',
+    maxWidth: '480px',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+    border: `1px solid ${RAIM_COLORS.BG}`,
+    textAlign: 'center'
+  },
+  confirmTitle: {
+    margin: '0 0 16px 0',
+    fontSize: pick({ mobile: '20px', tablet: '22px', tabletA9: '24px', desktop: '24px' }),
+    fontWeight: '800',
+    color: '#DC2626'
+  },
+  confirmBody: {
+    margin: '0 0 24px 0',
+    fontSize: pick({ mobile: '15px', tablet: '16px', tabletA9: '16px', desktop: '17px' }),
+    color: RAIM_COLORS.MUTED,
+    lineHeight: '1.6'
+  },
+  confirmButtonRow: {
+    display: 'flex',
+    gap: pick({ mobile: '12px', tablet: '14px', tabletA9: '16px', desktop: '16px' }),
+    justifyContent: 'center'
+  },
+  confirmCancelButton: {
+    flex: 1,
+    padding: pick({ mobile: '12px 16px', tablet: '14px 20px', tabletA9: '14px 20px', desktop: '14px 20px' }),
+    background: '#E2E8F0',
+    color: RAIM_COLORS.MUTED,
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: pick({ mobile: '16px', tablet: '17px', tabletA9: '17px', desktop: '17px' }),
+    fontWeight: '700',
+    cursor: 'pointer'
+  },
+  confirmSubmitButton: {
+    flex: 1,
+    padding: pick({ mobile: '12px 16px', tablet: '14px 20px', tabletA9: '14px 20px', desktop: '14px 20px' }),
+    background: '#DC2626',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: pick({ mobile: '16px', tablet: '17px', tabletA9: '17px', desktop: '17px' }),
+    fontWeight: '700',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)'
   }
   };
 };
@@ -371,6 +479,10 @@ export default function Dashboard({ onClose, onSave }) {
     ageGroups: {},
     gender: { male: 0, female: 0 }
   });
+  const [showBackupConfirm, setShowBackupConfirm] = useState(false);
+  const [backupStatus, setBackupStatus] = useState('idle'); // idle, loading, success, error
+  const [backupMessage, setBackupMessage] = useState('');
+  const [isBackupInProgress, setIsBackupInProgress] = useState(false); // 중복 클릭 방지
 
   // 오늘의 방문객 데이터 분석 (현재 관람실만 필터링)
   const analyzeVisitorData = (currentRoom) => {
@@ -489,10 +601,101 @@ export default function Dashboard({ onClose, onSave }) {
     onSave();
   };
 
-  const getSliderStyle = () => ({
+  const triggerBackup = async (retryCount = 0) => {
+    // 중복 호출 방지 (첫 호출에만 적용)
+    if (retryCount === 0 && isBackupInProgress) {
+      setBackupMessage('⏳ 백업이 이미 진행 중입니다. 완료될 때까지 기다려주세요.');
+      return;
+    }
+
+    if (retryCount === 0) {
+      setIsBackupInProgress(true);
+      setBackupStatus('loading');
+      setBackupMessage('백업 및 삭제 작업을 시작하고 있습니다...');
+    }
+
+    const maxRetries = 2;
+    const backupUrl = import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL;
+
+    if (!backupUrl) {
+      setBackupStatus('error');
+      setBackupMessage('✗ 백업 URL이 설정되지 않았습니다.\n환경 변수를 확인해주세요.');
+      setIsBackupInProgress(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      // Google Apps Script는 GET 요청으로 CORS 우회
+      // 캐시 무효화를 위해 타임스탬프 추가
+      const response = await fetch(backupUrl + '?action=backup&t=' + Date.now(), {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+      const result = await response.json();
+
+      if (result.success) {
+        setBackupStatus('success');
+        setBackupMessage('✓ 백업 및 삭제 성공');
+        setIsBackupInProgress(false);
+      } else if (retryCount < maxRetries) {
+        // 오류 발생 시 재시도
+        setBackupMessage(`⚠️ 작업 실패 (${retryCount + 1}/${maxRetries} 재시도 중)\n오류: ${result.error || '알 수 없는 오류'}`);
+
+        // 2초 대기 후 자동 재시도
+        setTimeout(() => {
+          triggerBackup(retryCount + 1);
+        }, 2000);
+      } else {
+        setBackupStatus('error');
+        setBackupMessage(`✗ 최대 재시도 횟수 초과\n오류: ${result.error || '알 수 없는 오류'}\n\n관리자에게 문의하세요.`);
+        setIsBackupInProgress(false);
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const isTimeout = error.name === 'AbortError';
+      const errorLabel = isTimeout ? '요청 시간이 초과되었습니다' : '네트워크 오류';
+
+      // 네트워크/타임아웃 오류 시 재시도
+      if (retryCount < maxRetries) {
+        setBackupMessage(`⚠️ ${errorLabel} (${retryCount + 1}/${maxRetries} 재시도 중)\n${error.message}`);
+
+        // 3초 대기 후 자동 재시도
+        setTimeout(() => {
+          triggerBackup(retryCount + 1);
+        }, 3000);
+      } else {
+        setBackupStatus('error');
+        setBackupMessage(`✗ 요청 실패 (최대 재시도 초과)\n${error.message}\n\n인터넷 연결을 확인하고 다시 시도해주세요.`);
+        setIsBackupInProgress(false);
+      }
+    }
+  };
+
+  const handleBackupClick = () => {
+    setShowBackupConfirm(true);
+  };
+
+  const handleConfirmBackup = () => {
+    setShowBackupConfirm(false);
+    triggerBackup();
+  };
+
+  // 슬라이더 배경색 계산 메모이제이션
+  const sliderBackground = useMemo(
+    () => `linear-gradient(to right, ${RAIM_COLORS.DARK} 0%, ${RAIM_COLORS.DARK} ${((ageCorrection + 10) / 20) * 100}%, ${RAIM_COLORS.BG} ${((ageCorrection + 10) / 20) * 100}%, ${RAIM_COLORS.BG} 100%)`,
+    [ageCorrection]
+  );
+
+  const sliderStyle = useMemo(() => ({
     ...styles.slider,
-    background: `linear-gradient(to right, ${RAIM_COLORS.DARK} 0%, ${RAIM_COLORS.DARK} ${((ageCorrection + 10) / 20) * 100}%, ${RAIM_COLORS.BG} ${((ageCorrection + 10) / 20) * 100}%, ${RAIM_COLORS.BG} 100%)`
-  });
+    background: sliderBackground
+  }), [styles.slider, sliderBackground]);
 
   // 연령대 그래프 컴포넌트
   const AgeGroupChart = () => {
@@ -782,7 +985,7 @@ export default function Dashboard({ onClose, onSave }) {
                 max="10"
                 value={ageCorrection}
                 onChange={(e) => setAgeCorrection(parseInt(e.target.value, 10))}
-                style={getSliderStyle()}
+                style={sliderStyle}
               />
               <span style={{ fontSize: '15px', color: RAIM_COLORS.MUTED, minWidth: '30px' }}>+10</span>
               <div style={styles.sliderValue}>
@@ -793,6 +996,47 @@ export default function Dashboard({ onClose, onSave }) {
               AI가 인식한 나이에 보정값을 더하여 연령대를 계산합니다. 현장 상황에 맞게 조절하세요.
             </div>
           </div>
+        </div>
+
+        {/* Firebase 데이터 백업 및 삭제 섹션 */}
+        <div style={styles.backupSection}>
+          <h3 style={styles.backupTitle}>
+            <AlertTriangle size={24} />
+            데이터 백업 및 삭제
+          </h3>
+          <p style={styles.backupDescription}>
+            Firebase Firestore의 모든 방문객 데이터를 엑셀로 자동 백업하고 Firestore에서 삭제합니다.<br />
+            <br />
+            <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.
+          </p>
+          <button 
+            style={styles.backupButton}
+            onClick={handleBackupClick}
+            disabled={backupStatus === 'loading' || isBackupInProgress}
+            className="backup-button"
+          >
+            {backupStatus === 'loading' ? (
+              <>
+                <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                진행 중...
+              </>
+            ) : (
+              <>
+                <Database size={20} />
+                지금 백업 및 삭제 실행
+              </>
+            )}
+          </button>
+          {backupStatus === 'success' && (
+            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#DCFCE7', borderRadius: '12px', border: '1px solid #86EFAC', fontSize: '14px', color: '#15803D', whiteSpace: 'pre-wrap' }}>
+              {backupMessage}
+            </div>
+          )}
+          {backupStatus === 'error' && (
+            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#FEE2E2', borderRadius: '12px', border: '1px solid #FCA5A5', fontSize: '14px', color: '#7F1D1D', whiteSpace: 'pre-wrap' }}>
+              {backupMessage}
+            </div>
+          )}
         </div>
 
         {/* 저장 버튼 */}
@@ -816,6 +1060,42 @@ export default function Dashboard({ onClose, onSave }) {
           </div>
         </div>
       )}
+
+      {showBackupConfirm && (
+        <div style={styles.confirmModal}>
+          <div style={styles.confirmCard}>
+            <h3 style={styles.confirmTitle}>정말로 실행하시겠습니까?</h3>
+            <p style={styles.confirmBody}>
+              <strong>이 작업은 되돌릴 수 없습니다!</strong>
+            </p>
+            <div style={styles.confirmButtonRow}>
+              <button 
+                style={styles.confirmCancelButton}
+                onClick={() => setShowBackupConfirm(false)}
+              >
+                취소
+              </button>
+              <button 
+                style={styles.confirmSubmitButton}
+                onClick={handleConfirmBackup}
+              >
+                실행하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { 
+          from { transform: rotate(0deg); } 
+          to { transform: rotate(360deg); } 
+        }
+        .backup-button:not(:disabled):hover {
+          background: #B91C1C !important;
+          box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4) !important;
+        }
+      `}</style>
     </div>
   );
 }
