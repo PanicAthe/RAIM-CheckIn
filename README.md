@@ -1,4 +1,4 @@
-# RAIM 방문자 체크인 시스템
+# RAIM 방문자 등록 시스템
 
 서울로봇인공지능과학관(RAIM)의 AI인식 기반 방문자 관리 시스템입니다. AI 얼굴 인식 기술을 활용하여 방문자의 성별과 연령대를 자동으로 감지하고, Firebase를 통해 실시간 데이터를 수집·관리합니다.
 
@@ -28,29 +28,23 @@
   - 기본 관람실 목록에서 선택
   - 커스텀 관람실 직접 입력 (대시보드에서만 가능)
 - 나이 보정값 조절 (-10 ~ +10)
-- **데이터 백업 및 삭제**: Firebase Firestore의 모든 데이터를 엑셀로 백업하고 자동 삭제
-  - 관리자 대시보드에서 수동 실행 가능
-  - Google Apps Script와 연동
-  - GET 기반 CORS 안전 호출
+- **수동 백업 및 삭제**:
+  - Firebase Firestore의 모든 데이터를 Google Sheets로 즉시 백업
+  - 백업 완료 후 Firestore 데이터 자동 삭제 (취소 불가)
+  - 2단계 확인 모달로 실수 방지
+  - 자동 재시도 메커니즘 (최대 3회 시도)
+  - 완료 시간: 1-3분 (데이터량에 따라)
+  - Google Apps Script와 연동 (GET 요청, CORS 안전)
 - 로고 3번 탭으로 진입 (다국어 미지원)
 
 ## 기술 스택
 
-### Frontend
-- **Framework**: React 19.2.0 + Vite 7.2.4
-- **AI/ML**: face-api.js 0.22.2
-- **UI**: Lucide React 0.562.0 (아이콘)
-- **State Management**: React Hooks
-- **i18n**: i18next 25.8.0 + react-i18next 16.5.4
+- **Frontend**: React 19.2.0 + Vite 7.2.4, face-api.js 0.22.2
+- **Backend**: Firebase 12.8.0 (Firestore), Google Apps Script (자동 백업)
+- **UI/UX**: Lucide React 0.562.0, i18next 25.8.0 (한/영 지원)
+- **배포**: Vercel (자동 배포)
 
-### Backend & Database
-- **Firebase**: 12.8.0 (Firestore 방문자 데이터 저장)
-- **Google Apps Script**: 3시간마다 자동 백업 및 정리 (설치 가이드: `public/script.txt` 참조)
-- **Google Sheets**: 데이터 영구 백업
-
-### 빌드 도구
-- Vite 7.2.4
-- ESLint 9.39.1
+> 상세 기술 스택 및 의존성은 [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)를 참조하세요.
 
 ## 시작하기
 
@@ -93,26 +87,7 @@ VITE_GOOGLE_APPS_SCRIPT_URL=https://script.google.com/macros/s/XXXX/exec
 - `VITE_GOOGLE_APPS_SCRIPT_URL`: Google Apps Script 웹 앱 배포 URL
 - 수동 백업 버튼이 필요 없으면 설정하지 않아도 됩니다
 
-**Firebase 프로젝트 설정 방법:**
-
-1. [Firebase Console](https://console.firebase.google.com/) 접속
-2. 새 프로젝트 생성 또는 기존 프로젝트 선택
-3. 프로젝트 설정 > 일반 > 내 앱 섹션에서 웹 앱 추가
-4. 앱 등록 후 표시되는 `firebaseConfig` 객체의 값들을 `.env` 파일에 복사
-5. Firestore Database 생성:
-   - Build > Firestore Database 선택
-   - 데이터베이스 만들기 (테스트 모드로 시작)
-   - 보안 규칙 설정 (프로덕션 환경에서는 필수)
-
-**관리자 PIN 설정:**
-- `VITE_ADMIN_PIN`: 관리자 잠금 화면 비밀번호 (기본값: `0000`)
-- 프로덕션 환경에서는 반드시 변경하세요
-
-**보안 주의사항:**
-- `.env` 파일은 절대 Git에 커밋하지 마세요 (`.gitignore`에 이미 포함됨)
-- 프로덕션 환경에서는 Firebase 보안 규칙을 반드시 설정하세요
-- 관리자 PIN은 강력한 번호로 변경하세요 (숫자 4자리 이상 권장)
-- API 키는 공개 저장소에 노출되지 않도록 주의하세요
+> **Firebase 설정**: [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성 후 웹 앱 추가, Firestore Database 생성. 상세 가이드는 [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md) 참조.
 
 4. **개발 서버 실행**
 ```bash

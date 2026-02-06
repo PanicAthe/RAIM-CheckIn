@@ -41,7 +41,7 @@
 | F008 | 관리자 대시보드 | localStorage 기반 일일 통계 및 설정 관리 (로고 3회 터치, 관람실별 필터링) |
 | F009 | 자동 백업 | 설정된 주기마다 Firestore → Google Sheets 백업 |
 | F010 | 자동 정리 | 백업 완료 후 Firestore 데이터 자동 삭제 |
-| F011 | 수동 백업 | 관리자 대시보드에서 즉시 백업 및 삭제 실행 |
+| F011 | 수동 백업 및 삭제 | 관리자 대시보드에서 즉시 백업 및 삭제 실행 |
 | F012 | 오류 알림 | 백업 실패 시 관리자 이메일 알림 |
 | F013 | 배포 | Vercel을 통한 웹 배포 (Git 연동) |
 
@@ -145,37 +145,19 @@
 
 ## 7. 배포 요구사항
 
-### 7.1 배포 환경
-
-- Frontend: Vercel (Git 연동 배포)
-- Backend: Firebase (클라우드)
-- 배포 방식: 자동 (GitHub push 시)
-
-### 7.2 배포 주기
-
-- 자동 배포: GitHub push 시 자동 실행
+- Frontend: Vercel (Git 연동, GitHub push 시 자동 배포)
+- Backend: Firebase Firestore (클라우드)
 - 배포 시간: 2분 이내
-
-### 7.3 가동성 검증
-
-- Vercel 자동 빌드 및 테스트
-- Preview URL을 통한 PR 검증
-- 프로덕션: main 브랜치 merge 시 자동 배포
 
 ---
 
 ## 8. 유지보수 요구사항
 
-### 8.1 모니터링
+> 상세 모니터링 및 유지보수 가이드는 [MAINTENANCE_GUIDE.md](./MAINTENANCE_GUIDE.md)를 참조하세요.
 
-- 주간: Google Sheets 데이터 확인
-- 월간: Firebase 사용량 모니터링
-- 분기별: 서비스 계정 키 보안 갱신
-
-### 8.2 로깅
-
-- Apps Script 실행 로그: 자동 생성
-- 오류 추적: 이메일 알림
+- 일일: Gmail 오류 알림 확인
+- 주간: Google Sheets 데이터 및 Firebase 사용량 확인
+- 분기별: 서비스 계정 키 보안 갱신 (선택사항)
 
 ---
 
@@ -198,21 +180,12 @@
 
 ## 10. 체크리스트
 
-### 10.1 개발 완료 기준
-
 - [x]  React 웹 애플리케이션 기본 구조
 - [x]  Face-api.js 얼굴 인식 기능
 - [x]  Firebase Firestore 데이터 저장
 - [x]  Google Apps Script 자동화 스크립트
 - [x]  Google Sheets 백업 기능
 - [x]  오류 처리 및 타임아웃 알림
-- [ ]  Vercel 배포 설정 및 자동화
-
-### 10.2 배포 전 확인
-
-- [ ]  성능 최적화 (API 효율 40% 개선)
-- [ ]  안정성 검증 (1,000+ 문서 처리 테스트)
-- [x]  문서화 (본 명세서)
-- [x]  비용 검증 (무료 티어 내 운영 확인)
+- [x]  Vercel 배포 설정 및 자동화
 
 ---
