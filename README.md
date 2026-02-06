@@ -159,9 +159,9 @@ raim-visitor-checkin/
 
 ## 상세 문서
 
+- [📝 요구사항 명세서](docs/REQUIREMENTS.md)
 - [📋 기능 명세서](docs/FEATURES.md)
 - [🏗️ 시스템 아키텍처](docs/ARCHITECTURE.md)
-- [⚙️ 설치 가이드](docs/SETUP_GUIDE.md)
 - [🔧 유지보수 가이드](docs/MAINTENANCE_GUIDE.md)
-- [📝 요구사항 명세서](docs/REQUIREMENTS.md)
+
 
