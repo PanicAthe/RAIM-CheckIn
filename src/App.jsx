@@ -399,11 +399,10 @@ function App() {
   };
 
   const handleScanEdit = () => {
-    setVisitors(prev => [...prev, ...scannedVisitors]);
     setScannedVisitors([]);
     setShowScanConfirm(false);
     stopVideo();
-    setIsAIMode(false);  // 수동 모드로 전환 (편집 용도)
+    setIsAIMode(false);  // 수동 모드로 전환 (스캔 결과는 리스트에 추가하지 않음)
   };
 
   const handleScanCancel = () => {
