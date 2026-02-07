@@ -182,7 +182,7 @@ function App() {
       
       await faceapi.detectSingleFace(
         dummyCanvas,
-        new faceapi.TinyFaceDetectorOptions({ inputSize: 608, scoreThreshold: 0.5 })
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 })
       ).withFaceLandmarks(true).withAgeAndGender();
       
       dummyCanvas.width = 0;
