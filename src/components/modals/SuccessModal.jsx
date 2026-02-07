@@ -1,7 +1,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RAIM_COLORS } from '../constants';
+import { RAIM_COLORS } from '../../constants';
 
 const modalStyles = {
   overlay: { 
@@ -45,7 +45,7 @@ export default function SuccessModal({ isOpen, onClose, count }) {
       
       return () => clearTimeout(timer);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen]);
   
   if (!isOpen) return null;
   return (

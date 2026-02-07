@@ -1,6 +1,6 @@
 import { AlertCircle, RefreshCw, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { RAIM_COLORS } from '../constants';
+import { RAIM_COLORS } from '../../constants';
 
 const modalStyles = {
   overlay: { 
@@ -70,16 +70,16 @@ export default function ErrorModal({ isOpen, onClose, onRetry, message, showRetr
           {message || t('errorModal.defaultMessage')}
         </p>
         <div style={modalStyles.buttonRow}>
+          <button onClick={onClose} style={modalStyles.cancelButton}>
+            <X size={18} />
+            {t('common.close')}
+          </button>
           {showRetry && (
             <button onClick={onRetry} style={modalStyles.retryButton}>
               <RefreshCw size={18} />
               {t('common.retry')}
             </button>
           )}
-          <button onClick={onClose} style={modalStyles.cancelButton}>
-            <X size={18} />
-            {t('common.close')}
-          </button>
         </div>
       </div>
     </div>

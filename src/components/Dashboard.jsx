@@ -1,7 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Settings, Users, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown, Edit3, Database, AlertTriangle, Loader } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Settings, Calendar, Save, X, Sliders, BarChart3, MapPin, ChevronDown, Edit3 } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { RAIM_COLORS, ageGroups, roomLocations } from '../constants';
+import { RAIM_COLORS, ROOM_CACHE_KEY, AGE_GROUP_LABEL_TO_ID, normalizeAgeGroupId } from '../constants';
+import { getRoomLocations, addRoomLocation, deleteRoomLocation } from '../firebase';
+import AgeGroupChart from './dashboard/AgeGroupChart';
+import GenderChart from './dashboard/GenderChart';
+import BackupSection from './dashboard/BackupSection';
+import RoomManagementModal from './dashboard/RoomManagementModal';
 
 const getStyles = (device) => {
   const pick = (map) => map[device] ?? map.desktop;
@@ -210,69 +215,6 @@ const getStyles = (device) => {
     backgroundColor: `${RAIM_COLORS.DARK}15`,
     color: RAIM_COLORS.DARK
   },
-  chartContainer: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: pick({ mobile: '16px', tablet: '24px', tabletA9: '24px', desktop: '24px' }),
-    border: `1px solid ${RAIM_COLORS.BG}`,
-    boxSizing: 'border-box',
-    width: '100%',
-    maxWidth: '100%',
-    overflow: 'hidden'
-  },
-  chartTitle: {
-    fontSize: pick({ mobile: '15px', tablet: '17px', tabletA9: '17px', desktop: '18px' }),
-    fontWeight: '600',
-    color: RAIM_COLORS.DARK,
-    marginBottom: pick({ mobile: '14px', tablet: '16px', tabletA9: '16px', desktop: '18px' }),
-    textAlign: 'center'
-  },
-  barChart: {
-    width: '100%',
-    height: '340px'
-  },
-  barGroup: {
-    display: 'flex',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    height: '300px',
-    marginBottom: '10px',
-    overflow: 'visible',
-    gap: pick({ mobile: '8px', tablet: '12px', tabletA9: '12px', desktop: '12px' })
-  },
-  bar: {
-    flex: 1,
-    margin: '0 3px',
-    borderRadius: '6px 6px 0 0',
-    transition: 'all 0.3s',
-    position: 'relative'
-  },
-  barLabel: {
-    fontSize: pick({ mobile: '11px', tablet: '14px', tabletA9: '14px', desktop: '14px' }),
-    color: RAIM_COLORS.MUTED,
-    textAlign: 'center',
-    fontWeight: '500',
-    lineHeight: '1.2',
-    maxWidth: '60px',
-    wordBreak: 'break-word'
-  },
-  genderChart: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    padding: '20px 0'
-  },
-  genderBar: {
-    width: '100px',
-    height: '50px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    fontWeight: '600',
-    fontSize: '18px'
-  },
   selectWrapper: {
     position: 'relative',
     display: 'flex',
@@ -354,50 +296,6 @@ const getStyles = (device) => {
     minWidth: '120px',
     boxShadow: '0 6px 16px rgba(0, 68, 139, 0.25)'
   },
-  backupSection: {
-    backgroundColor: '#FFF5F5',
-    borderRadius: pick({ mobile: '16px', tablet: '18px', tabletA9: '20px', desktop: '20px' }),
-    padding: pick({ mobile: '20px', tablet: '26px', tabletA9: '28px', desktop: '30px' }),
-    marginBottom: pick({ mobile: '30px', tablet: '50px', tabletA9: '14px', desktop: '16px' }),
-    border: `2px solid #FCA5A5`,
-    borderTop: `4px solid #DC2626`,
-    boxSizing: 'border-box',
-    width: '100%',
-    maxWidth: '100%'
-  },
-  backupTitle: {
-    fontSize: pick({ mobile: '18px', tablet: '20px', tabletA9: '21px', desktop: '22px' }),
-    color: '#DC2626',
-    fontWeight: '700',
-    marginBottom: pick({ mobile: '12px', tablet: '16px', tabletA9: '18px', desktop: '20px' }),
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-  backupDescription: {
-    fontSize: pick({ mobile: '14px', tablet: '15px', tabletA9: '16px', desktop: '16px' }),
-    color: '#7F1D1D',
-    marginBottom: pick({ mobile: '18px', tablet: '20px', tabletA9: '22px', desktop: '24px' }),
-    lineHeight: '1.6'
-  },
-  backupButton: {
-    width: '100%',
-    padding: pick({ mobile: '16px', tablet: '18px', tabletA9: '20px', desktop: '20px' }),
-    background: '#DC2626',
-    color: 'white',
-    border: 'none',
-    borderRadius: pick({ mobile: '14px', tablet: '16px', tabletA9: '18px', desktop: '18px' }),
-    fontSize: pick({ mobile: '16px', tablet: '17px', tabletA9: '18px', desktop: '18px' }),
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'all 0.3s',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: pick({ mobile: '8px', tablet: '10px', tabletA9: '10px', desktop: '12px' }),
-    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-    minHeight: pick({ mobile: '50px', tablet: '58px', tabletA9: '60px', desktop: '62px' })
-  },
   confirmModal: {
     position: 'fixed',
     top: 0,
@@ -468,46 +366,84 @@ const getStyles = (device) => {
 export default function Dashboard({ onClose, onSave }) {
   const { device } = useIsMobile();
   const styles = getStyles(device);
+  const retryTimeoutRef = useRef(null);
   
   const [todayCount, setTodayCount] = useState(0);
   const [ageCorrection, setAgeCorrection] = useState(4);
   const [selectedRoom, setSelectedRoom] = useState("");
-  const [isCustomRoom, setIsCustomRoom] = useState(false);
-  const [customRoomName, setCustomRoomName] = useState("");
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [visitorStats, setVisitorStats] = useState({
     ageGroups: {},
+    ageGroupGender: {},
     gender: { male: 0, female: 0 }
   });
   const [showBackupConfirm, setShowBackupConfirm] = useState(false);
   const [backupStatus, setBackupStatus] = useState('idle'); // idle, loading, success, error
   const [backupMessage, setBackupMessage] = useState('');
-  const [isBackupInProgress, setIsBackupInProgress] = useState(false); // 중복 클릭 방지
+  
+  // 관람실 관리 state
+  const [roomItems, setRoomItems] = useState([]);
+  const [showRoomManagement, setShowRoomManagement] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  
+  // 알림 모달 state
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetRoom, setDeleteTargetRoom] = useState(null);
+
+  const roomNames = useMemo(() => roomItems.map((room) => room.name), [roomItems]);
+  
+  // 백업 진행 중 여부 (backupStatus로부터 계산)
+  const isBackupInProgress = useMemo(() => backupStatus === 'loading', [backupStatus]);
 
   // 오늘의 방문객 데이터 분석 (현재 관람실만 필터링)
-  const analyzeVisitorData = (currentRoom) => {
-    const today = new Date().toDateString();
+  const analyzeVisitorData = useCallback((currentRoom) => {
+    const today = new Date().toISOString().split('T')[0]; // ISO 형식: YYYY-MM-DD
     const todayDataKey = `todayVisitors_${today}`;
     const savedVisitors = localStorage.getItem(todayDataKey);
     
     if (savedVisitors) {
-      const allVisitors = JSON.parse(savedVisitors);
+      let allVisitors = [];
+      try {
+        const parsed = JSON.parse(savedVisitors);
+        allVisitors = Array.isArray(parsed) ? parsed : [];
+      } catch (parseError) {
+        console.warn('오늘 방문객 데이터 파싱 실패:', parseError);
+        allVisitors = [];
+      }
       // 현재 관람실의 방문객만 필터링
       const visitors = currentRoom 
         ? allVisitors.filter(v => v.location === currentRoom)
         : allVisitors;
       
       const ageGroupCount = {};
+      const ageGroupGender = {}; // 연령대별 남녀 통계
       const genderCount = { male: 0, female: 0 };
-      
+
       visitors.forEach(visitor => {
+        const normalizedAgeGroup = normalizeAgeGroupId(visitor.ageGroup);
+        // 데이터는 이제 항상 영문 코드 형식으로 저장됨
+        const normalizedGender = visitor.gender === 'male' ? 'male' : visitor.gender === 'female' ? 'female' : '';
+
         // 연령대 집계
-        ageGroupCount[visitor.ageGroup] = (ageGroupCount[visitor.ageGroup] || 0) + 1;
+        ageGroupCount[normalizedAgeGroup] = (ageGroupCount[normalizedAgeGroup] || 0) + 1;
         
-        // 성별 집계
-        if (visitor.gender === 'male') {
+        // 연령대별 남녀 집계
+        if (!ageGroupGender[normalizedAgeGroup]) {
+          ageGroupGender[normalizedAgeGroup] = { male: 0, female: 0 };
+        }
+        if (normalizedGender === 'male') {
+          ageGroupGender[normalizedAgeGroup].male++;
+        } else if (normalizedGender === 'female') {
+          ageGroupGender[normalizedAgeGroup].female++;
+        }
+        
+        // 전체 성별 집계
+        if (normalizedGender === 'male') {
           genderCount.male++;
-        } else if (visitor.gender === 'female') {
+        } else if (normalizedGender === 'female') {
           genderCount.female++;
         }
       });
@@ -515,6 +451,7 @@ export default function Dashboard({ onClose, onSave }) {
       setTodayCount(visitors.length);
       setVisitorStats({
         ageGroups: ageGroupCount,
+        ageGroupGender: ageGroupGender,
         gender: genderCount
       });
     } else {
@@ -522,25 +459,47 @@ export default function Dashboard({ onClose, onSave }) {
       setTodayCount(0);
       setVisitorStats({
         ageGroups: {},
+        ageGroupGender: {},
         gender: { male: 0, female: 0 }
       });
     }
-  };
+  }, []);
+
+  // Firebase에서 관람실 목록 로드 (캐시 우선)
+  const loadRoomLocations = useCallback(async () => {
+    const cachedRooms = localStorage.getItem(ROOM_CACHE_KEY);
+    if (cachedRooms) {
+      try {
+        const parsed = JSON.parse(cachedRooms);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRoomItems(parsed.map((room) => ({ id: room.id, name: room.name })));
+        }
+      } catch (error) {
+        console.error('관람실 캐시 파싱 실패:', error);
+      }
+    }
+
+    setIsLoadingRooms(true);
+    try {
+      const result = await getRoomLocations();
+      if (result.success && result.data.length > 0) {
+        setRoomItems(result.data.map((room) => ({ id: room.id, name: room.name })));
+        localStorage.setItem(ROOM_CACHE_KEY, JSON.stringify(result.data));
+      } else {
+        // Firebase 초기화 안 되거나 빈 데이터 시 캐시도 비움
+        setRoomItems([]);
+        localStorage.removeItem(ROOM_CACHE_KEY);
+      }
+    } catch (error) {
+      console.error('관람실 로드 실패:', error);
+    } finally {
+      setIsLoadingRooms(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const today = new Date();
-    const todayStr = today.toDateString();
-    const keys = Object.keys(localStorage);
-    
-    keys.forEach(key => {
-      if (key.startsWith('visitorCount_') || key.startsWith('todayVisitors_')) {
-        const dateStr = key.split('_').slice(1).join('_');
-        
-        if (dateStr !== todayStr) {
-          localStorage.removeItem(key);
-        }
-      }
-    });
+    // Firebase에서 관람실 목록 로드
+    loadRoomLocations();
 
     // 저장된 나이 보정값 로드
     const savedCorrection = localStorage.getItem('ageCorrection');
@@ -551,36 +510,103 @@ export default function Dashboard({ onClose, onSave }) {
     // 저장된 관람실 정보 로드
     const savedRoom = localStorage.getItem('room_location');
     if (savedRoom) {
-      // 기본 관람실 목록에 없으면 커스텀으로 처리
-      if (!roomLocations.includes(savedRoom)) {
-        setIsCustomRoom(true);
-        setCustomRoomName(savedRoom);
-        setSelectedRoom('__custom__');
-      } else {
-        setSelectedRoom(savedRoom);
-      }
+      setSelectedRoom(savedRoom);
       // 관람실별 방문객 데이터 분석
       analyzeVisitorData(savedRoom);
     } else {
       // 관람실이 없으면 전체 데이터 분석
       analyzeVisitorData(null);
     }
-  }, []);
 
-  const handleSave = () => {
-    let finalRoomName = selectedRoom;
-    
-    // 커스텀 관람실 처리
-    if (selectedRoom === '__custom__') {
-      if (!customRoomName.trim()) {
-        alert("커스텀 관람실 이름을 입력해주세요.");
-        return;
+    // Cleanup 함수
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
       }
-      finalRoomName = customRoomName.trim();
+    };
+  }, [loadRoomLocations, analyzeVisitorData]);
+
+  // 관람실 선택 변경 시 통계 자동 갱신
+  useEffect(() => {
+    analyzeVisitorData(selectedRoom || null);
+  }, [selectedRoom, analyzeVisitorData]);
+
+  // 관람실 추가
+  const handleAddRoom = async () => {
+    const trimmedName = newRoomName.trim();
+    if (!trimmedName) {
+      setAlertMessage('관람실 이름을 입력해주세요.');
+      setShowAlertModal(true);
+      return;
     }
     
-    if (!finalRoomName) {
-      alert("관람실을 선택해주세요.");
+    if (roomNames.includes(trimmedName)) {
+      setAlertMessage('이미 존재하는 관람실입니다.');
+      setShowAlertModal(true);
+      return;
+    }
+
+    const result = await addRoomLocation(trimmedName);
+    if (result.success) {
+      const updatedRooms = [...roomItems, { id: result.id, name: trimmedName }];
+      setRoomItems(updatedRooms);
+      localStorage.setItem(
+        ROOM_CACHE_KEY,
+        JSON.stringify(updatedRooms.filter((room) => room.id))
+      );
+      setNewRoomName('');
+      setAlertMessage('관람실이 추가되었습니다.');
+      setShowAlertModal(true);
+    } else {
+      setAlertMessage('관람실 추가에 실패했습니다: ' + result.error);
+      setShowAlertModal(true);
+    }
+  };
+
+  // 관람실 삭제 확인 모달
+  const showDeleteConfirmModal = (roomName) => {
+    setDeleteTargetRoom(roomName);
+    setShowDeleteConfirm(true);
+  };
+
+  // 관람실 삭제 실행
+  const handleDeleteRoom = async (roomName) => {
+    const roomToDelete = roomItems.find((room) => room.name === roomName);
+    if (!roomToDelete) {
+      return;
+    }
+
+    const result = await deleteRoomLocation(roomToDelete.id);
+    if (result.success) {
+      const updatedRooms = roomItems.filter((room) => room.id !== roomToDelete.id);
+      setRoomItems(updatedRooms);
+      localStorage.setItem(
+        ROOM_CACHE_KEY,
+        JSON.stringify(updatedRooms)
+      );
+      
+      // 현재 선택된 관람실이 삭제되는 경우 선택 해제
+      if (selectedRoom === roomName) {
+        setSelectedRoom('');
+        localStorage.removeItem('room_location');
+      }
+      
+      setAlertMessage('관람실이 삭제되었습니다.');
+      setShowAlertModal(true);
+      setShowDeleteConfirm(false);
+      setDeleteTargetRoom(null);
+    } else {
+      setAlertMessage('관람실 삭제에 실패했습니다: ' + result.error);
+      setShowAlertModal(true);
+      setShowDeleteConfirm(false);
+      setDeleteTargetRoom(null);
+    }
+  };
+
+  const handleSave = () => {
+    if (!selectedRoom) {
+      setAlertMessage("관람실을 선택해주세요.");
+      setShowAlertModal(true);
       return;
     }
     
@@ -588,10 +614,10 @@ export default function Dashboard({ onClose, onSave }) {
     localStorage.setItem('ageCorrection', ageCorrection.toString());
     
     // 관람실 정보 저장
-    localStorage.setItem('room_location', finalRoomName);
+    localStorage.setItem('room_location', selectedRoom);
     
     // 관람실이 변경되었으면 데이터 다시 분석
-    analyzeVisitorData(finalRoomName);
+    analyzeVisitorData(selectedRoom);
 
     setShowSaveModal(true);
   };
@@ -603,13 +629,12 @@ export default function Dashboard({ onClose, onSave }) {
 
   const triggerBackup = async (retryCount = 0) => {
     // 중복 호출 방지 (첫 호출에만 적용)
-    if (retryCount === 0 && isBackupInProgress) {
+    if (retryCount === 0 && backupStatus === 'loading') {
       setBackupMessage('⏳ 백업이 이미 진행 중입니다. 완료될 때까지 기다려주세요.');
       return;
     }
 
     if (retryCount === 0) {
-      setIsBackupInProgress(true);
       setBackupStatus('loading');
       setBackupMessage('백업 및 삭제 작업을 시작하고 있습니다...');
     }
@@ -620,7 +645,6 @@ export default function Dashboard({ onClose, onSave }) {
     if (!backupUrl) {
       setBackupStatus('error');
       setBackupMessage('✗ 백업 URL이 설정되지 않았습니다.\n환경 변수를 확인해주세요.');
-      setIsBackupInProgress(false);
       return;
     }
 
@@ -642,19 +666,20 @@ export default function Dashboard({ onClose, onSave }) {
       if (result.success) {
         setBackupStatus('success');
         setBackupMessage('✓ 백업 및 삭제 성공');
-        setIsBackupInProgress(false);
       } else if (retryCount < maxRetries) {
         // 오류 발생 시 재시도
         setBackupMessage(`⚠️ 작업 실패 (${retryCount + 1}/${maxRetries} 재시도 중)\n오류: ${result.error || '알 수 없는 오류'}`);
 
         // 2초 대기 후 자동 재시도
-        setTimeout(() => {
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = setTimeout(() => {
           triggerBackup(retryCount + 1);
         }, 2000);
       } else {
         setBackupStatus('error');
         setBackupMessage(`✗ 최대 재시도 횟수 초과\n오류: ${result.error || '알 수 없는 오류'}\n\n관리자에게 문의하세요.`);
-        setIsBackupInProgress(false);
       }
     } catch (error) {
       clearTimeout(timeoutId);
@@ -666,13 +691,15 @@ export default function Dashboard({ onClose, onSave }) {
         setBackupMessage(`⚠️ ${errorLabel} (${retryCount + 1}/${maxRetries} 재시도 중)\n${error.message}`);
 
         // 3초 대기 후 자동 재시도
-        setTimeout(() => {
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = setTimeout(() => {
           triggerBackup(retryCount + 1);
         }, 3000);
       } else {
         setBackupStatus('error');
         setBackupMessage(`✗ 요청 실패 (최대 재시도 초과)\n${error.message}\n\n인터넷 연결을 확인하고 다시 시도해주세요.`);
-        setIsBackupInProgress(false);
       }
     }
   };
@@ -697,160 +724,6 @@ export default function Dashboard({ onClose, onSave }) {
     background: sliderBackground
   }), [styles.slider, sliderBackground]);
 
-  // 연령대 그래프 컴포넌트
-  const AgeGroupChart = () => {
-    const totalCount = Object.values(visitorStats.ageGroups).reduce((sum, count) => sum + count, 0);
-    
-    if (totalCount === 0) {
-      return (
-        <div style={styles.chartContainer}>
-          <div style={styles.chartTitle}>연령대 분포</div>
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: RAIM_COLORS.MUTED }}>
-            데이터가 없습니다
-          </div>
-        </div>
-      );
-    }
-    
-    const maxCount = Math.max(...Object.values(visitorStats.ageGroups), 1);
-    
-    return (
-      <div style={styles.chartContainer}>
-        <div style={styles.chartTitle}>연령대 분포</div>
-        <div style={styles.barChart}>
-          <div style={styles.barGroup}>
-            {ageGroups.map((group) => {
-              const count = visitorStats.ageGroups[group.label] || 0;
-              const height = maxCount > 0 ? (count / maxCount) * 200 : 0;
-              
-              return (
-                <div key={group.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: '8px' }}>
-                  {count > 0 && (
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: RAIM_COLORS.DARK }}>
-                      {count}
-                    </div>
-                  )}
-                  <div 
-                    style={{
-                      height: `${height}px`,
-                      width: '70%',
-                      backgroundColor: RAIM_COLORS.DARK,
-                      borderRadius: '4px 4px 0 0',
-                      minHeight: count > 0 ? '8px' : '0',
-                      transition: 'all 0.3s',
-                      boxShadow: count > 0 ? '0 4px 12px rgba(0, 68, 139, 0.2)' : 'none'
-                    }}
-                  />
-                  <div style={styles.barLabel}>{group.label}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // 성별 그래프 컴포넌트
-  const GenderChart = () => {
-    const total = visitorStats.gender.male + visitorStats.gender.female;
-    const malePercent = total > 0 ? Math.round((visitorStats.gender.male / total) * 100) : 0;
-    const femalePercent = total > 0 ? Math.round((visitorStats.gender.female / total) * 100) : 0;
-    const maleDegree = total > 0 ? (visitorStats.gender.male / total) * 360 : 0;
-    
-    const isMobileDevice = device === 'mobile';
-    const chartSize = isMobileDevice ? 140 : 180;
-    const innerSize = isMobileDevice ? 100 : 130;
-    const gap = isMobileDevice ? '20px' : '40px';
-    const padding = isMobileDevice ? '16px' : '24px';
-    
-    return (
-      <div style={styles.chartContainer}>
-        <div style={styles.chartTitle}>성별 분포</div>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          gap: gap, 
-          padding: padding,
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ position: 'relative', width: `${chartSize}px`, height: `${chartSize}px`, flexShrink: 0 }}>
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                background: `conic-gradient(${RAIM_COLORS.DARK} 0deg ${maleDegree}deg, ${RAIM_COLORS.MEDIUM} ${maleDegree}deg 360deg)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative'
-              }}
-            >
-              <div
-                style={{
-                  width: `${innerSize}px`,
-                  height: `${innerSize}px`,
-                  borderRadius: '50%',
-                  backgroundColor: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'column'
-                }}
-              >
-                <div style={{ fontSize: isMobileDevice ? '22px' : '28px', fontWeight: '800', color: RAIM_COLORS.DARK }}>
-                  {total}명
-                </div>
-                <div style={{ fontSize: isMobileDevice ? '12px' : '14px', color: RAIM_COLORS.MUTED }}>
-                  Total
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: isMobileDevice ? '12px' : '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobileDevice ? '10px' : '15px' }}>
-              <div style={{
-                width: isMobileDevice ? '22px' : '28px',
-                height: isMobileDevice ? '22px' : '28px',
-                borderRadius: '6px',
-                backgroundColor: RAIM_COLORS.DARK,
-                flexShrink: 0
-              }} />
-              <div>
-                <div style={{ fontSize: isMobileDevice ? '15px' : '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
-                  남성
-                </div>
-                <div style={{ fontSize: isMobileDevice ? '13px' : '15px', color: RAIM_COLORS.MUTED }}>
-                  {visitorStats.gender.male}명 ({malePercent}%)
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: isMobileDevice ? '10px' : '15px' }}>
-              <div style={{
-                width: isMobileDevice ? '22px' : '28px',
-                height: isMobileDevice ? '22px' : '28px',
-                borderRadius: '6px',
-                backgroundColor: RAIM_COLORS.MEDIUM,
-                flexShrink: 0
-              }} />
-              <div>
-                <div style={{ fontSize: isMobileDevice ? '15px' : '18px', fontWeight: '600', color: RAIM_COLORS.DARK }}>
-                  여성
-                </div>
-                <div style={{ fontSize: isMobileDevice ? '13px' : '15px', color: RAIM_COLORS.MUTED }}>
-                  {visitorStats.gender.female}명 ({femalePercent}%)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div style={styles.dashboardOverlay}>
       <div style={styles.dashboardModal}>
@@ -870,7 +743,7 @@ export default function Dashboard({ onClose, onSave }) {
             <div style={styles.statsCard}>
               <div style={styles.statsContent}>
                 <div style={styles.statsLabel}>
-                  {(isCustomRoom ? customRoomName : selectedRoom) ? `${isCustomRoom ? customRoomName : selectedRoom} - 오늘의 누적 입장객` : '오늘의 누적 입장객 수'}
+                  {selectedRoom ? `${selectedRoom} - 오늘의 누적 입장객` : '오늘의 누적 입장객 수'}
                 </div>
                 <div style={styles.statsNumber}>{todayCount.toLocaleString()}명</div>
               </div>
@@ -896,12 +769,12 @@ export default function Dashboard({ onClose, onSave }) {
               </div>
               오늘의 통계 분석
             </h3>
-            <AgeGroupChart />
+            <AgeGroupChart visitorStats={visitorStats} />
             <div style={{ marginTop: '20px' }}>
-              <GenderChart />
+              <GenderChart visitorStats={visitorStats} />
             </div>
             <div style={styles.infoText}>
-              오늘 {(isCustomRoom ? customRoomName : selectedRoom) ? `${isCustomRoom ? customRoomName : selectedRoom} ` : ''}방문객의 분포입니다.
+              오늘 {selectedRoom ? `${selectedRoom} ` : ''}방문객의 분포입니다.
             </div>
           </div>
         </div>
@@ -917,27 +790,39 @@ export default function Dashboard({ onClose, onSave }) {
           
           {/* 관람실 선택 */}
           <div style={styles.formGroup}>
-            <label style={styles.formLabel}>관람실 선택</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <label style={styles.formLabel}>관람실 선택</label>
+              <button
+                onClick={() => setShowRoomManagement(true)}
+                style={{
+                  padding: '8px 14px',
+                  background: RAIM_COLORS.DARK,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Edit3 size={16} />
+                관람실 관리
+              </button>
+            </div>
             <div style={styles.selectWrapper}>
               <MapPin size={24} color={RAIM_COLORS.MUTED} style={{position:'absolute', left: '18px', top: '50%', transform: 'translateY(-50%)', zIndex: 1}} />
               <select 
                 value={selectedRoom}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setSelectedRoom(value);
-                  if (value === '__custom__') {
-                    setIsCustomRoom(true);
-                  } else {
-                    setIsCustomRoom(false);
-                  }
-                }}
+                onChange={(e) => setSelectedRoom(e.target.value)}
                 style={styles.select}
               >
                 <option value="">관람실 선택</option>
-                {roomLocations.map(room => (
-                  <option key={room} value={room}>{room}</option>
+                {roomItems.map((room) => (
+                  <option key={room.name} value={room.name}>{room.name}</option>
                 ))}
-                <option value="__custom__">직접 입력</option>
               </select>
               <ChevronDown 
                 size={24} 
@@ -946,35 +831,11 @@ export default function Dashboard({ onClose, onSave }) {
               />
             </div>
             
-            {/* 커스텀 관람실 입력 필드 */}
-            {isCustomRoom && (
-              <div style={{ marginTop: '12px' }}>
-                <div style={styles.inputWrapper}>
-                  <input 
-                    type="text"
-                    value={customRoomName}
-                    onChange={(e) => setCustomRoomName(e.target.value)}
-                    placeholder="커스텀 관람실 이름 입력"
-                    style={{
-                      width: '100%',
-                      padding: '18px 18px 18px 20px',
-                      fontSize: '18px',
-                      border: `2px solid ${RAIM_COLORS.DARK}`,
-                      borderRadius: '16px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      minHeight: '58px'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            
             <div style={styles.infoText}>
               방문객 데이터에 관람실 정보가 함께 저장됩니다.
-              {isCustomRoom && <><br />커스텀 관람실은 대시보드에서만 설정 가능합니다.</>}
             </div>
           </div>
+          
           <div style={styles.formGroup}>
             <label style={styles.formLabel}>나이 보정값 ({ageCorrection > 0 ? '+' : ''}{ageCorrection}세)</label>
             <div style={styles.sliderContainer}>
@@ -999,45 +860,12 @@ export default function Dashboard({ onClose, onSave }) {
         </div>
 
         {/* Firebase 데이터 백업 및 삭제 섹션 */}
-        <div style={styles.backupSection}>
-          <h3 style={styles.backupTitle}>
-            <AlertTriangle size={24} />
-            데이터 백업 및 삭제
-          </h3>
-          <p style={styles.backupDescription}>
-            Firebase Firestore의 모든 방문객 데이터를 엑셀로 자동 백업하고 Firestore에서 삭제합니다.<br />
-            <br />
-            <strong>⚠️ 주의:</strong> 이 작업은 되돌릴 수 없습니다.
-          </p>
-          <button 
-            style={styles.backupButton}
-            onClick={handleBackupClick}
-            disabled={backupStatus === 'loading' || isBackupInProgress}
-            className="backup-button"
-          >
-            {backupStatus === 'loading' ? (
-              <>
-                <Loader size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                진행 중...
-              </>
-            ) : (
-              <>
-                <Database size={20} />
-                지금 백업 및 삭제 실행
-              </>
-            )}
-          </button>
-          {backupStatus === 'success' && (
-            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#DCFCE7', borderRadius: '12px', border: '1px solid #86EFAC', fontSize: '14px', color: '#15803D', whiteSpace: 'pre-wrap' }}>
-              {backupMessage}
-            </div>
-          )}
-          {backupStatus === 'error' && (
-            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#FEE2E2', borderRadius: '12px', border: '1px solid #FCA5A5', fontSize: '14px', color: '#7F1D1D', whiteSpace: 'pre-wrap' }}>
-              {backupMessage}
-            </div>
-          )}
-        </div>
+        <BackupSection 
+          backupStatus={backupStatus}
+          backupMessage={backupMessage}
+          isBackupInProgress={isBackupInProgress}
+          onBackupClick={handleBackupClick}
+        />
 
         {/* 저장 버튼 */}
         <button 
@@ -1096,6 +924,65 @@ export default function Dashboard({ onClose, onSave }) {
           box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4) !important;
         }
       `}</style>
+
+      <RoomManagementModal 
+        isOpen={showRoomManagement}
+        onClose={() => setShowRoomManagement(false)}
+        roomItems={roomItems}
+        selectedRoom={selectedRoom}
+        newRoomName={newRoomName}
+        setNewRoomName={setNewRoomName}
+        isLoadingRooms={isLoadingRooms}
+        onAddRoom={handleAddRoom}
+        onDeleteRoom={showDeleteConfirmModal}
+      />
+
+      {/* 일반 알림 모달 */}
+      {showAlertModal && (
+        <div style={styles.confirmModal}>
+          <div style={styles.confirmCard}>
+            <h3 style={styles.confirmTitle}>알림</h3>
+            <p style={styles.confirmBody}>{alertMessage}</p>
+            <div style={styles.confirmButtonRow}>
+              <button 
+                style={styles.confirmSubmitButton}
+                onClick={() => setShowAlertModal(false)}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteConfirm && (
+        <div style={styles.confirmModal}>
+          <div style={styles.confirmCard}>
+            <h3 style={styles.confirmTitle}>관람실 삭제</h3>
+            <p style={styles.confirmBody}>
+              <strong>"{deleteTargetRoom}"을(를) 정말 삭제하시겠습니까?</strong>
+            </p>
+            <div style={styles.confirmButtonRow}>
+              <button 
+                style={styles.confirmCancelButton}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteTargetRoom(null);
+                }}
+              >
+                취소
+              </button>
+              <button 
+                style={styles.confirmSubmitButton}
+                onClick={() => handleDeleteRoom(deleteTargetRoom)}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

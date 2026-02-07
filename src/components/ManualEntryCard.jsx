@@ -1,7 +1,7 @@
 import { UserPlus, ArrowDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ageGroups, RAIM_COLORS } from '../constants';
+import { RAIM_COLORS } from '../constants';
 
 const getStyles = (device) => {
   const pick = (map) => map[device] ?? map.desktop;
@@ -105,6 +105,7 @@ export default function ManualEntryCard({
   setManualGender, 
   manualGroup, 
   setManualGroup, 
+  ageGroups,
   onAdd 
 }) {
   const { t } = useTranslation();
@@ -147,21 +148,24 @@ export default function ManualEntryCard({
         <div style={styles.gridContainer}>
           {ageGroups.map((group) => (
             <button
-              key={group.label}
-              onClick={() => setManualGroup(group.label)}
+              key={group.id}
+              onClick={() => setManualGroup(group.id)}
               style={{
                 ...styles.ageButton,
-                ...(manualGroup === group.label ? styles.ageButtonActive : {})
+                ...(manualGroup === group.id ? styles.ageButtonActive : {})
               }}
             >
-              <span style={styles.ageLabel}>{t(`ageGroups.${group.key}`)}</span>
-              <span style={styles.ageSub}>{t(`ageGroups.${group.key}Sub`)}</span>
+              <span style={styles.ageLabel}>{t(`ageGroups.${group.id}`)}</span>
+              <span style={styles.ageSub}>{t(`ageGroups.${group.id}Sub`)}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <button onClick={() => onAdd()} style={styles.addButton}>
+      <button
+        onClick={() => onAdd()}
+        style={styles.addButton}
+      >
         <span>{t('manualEntry.addButton')}</span>
         <ArrowDown size={24} strokeWidth={3} />
       </button>

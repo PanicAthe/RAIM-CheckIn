@@ -1,5 +1,15 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  getDocs, 
+  doc, 
+  deleteDoc,
+  query,
+  orderBy
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,6 +24,9 @@ const firebaseConfig = {
 const missingKeys = Object.entries(firebaseConfig)
   .filter(([, value]) => !value)
   .map(([key]) => key);
+
+let app = null;
+let db = null;
 
 if (missingKeys.length) {
   const errorMsg = `
@@ -34,20 +47,77 @@ ${missingKeys.map(key => `  - ${key}`).join('\n')}
    VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
 3. 개발 서버를 재시작하세요 (npm run dev)
 
-자세한 내용은 README.md를 참고하세요.
-
-⚠️ 경고: Firebase 연결 없이 실행 중입니다. 데이터는 localStorage에만 저장됩니다.
+⚠️ 경고: Firebase 연결 없이 실행 중입니다. 데이터 전송은 비활성화됩니다.
 `;
   console.error(errorMsg);
-  // 개발 중에는 경고만 표시하고 계속 실행 (프로덕션에서는 throw 권장)
+  
   if (import.meta.env.PROD) {
     throw new Error(`Missing Firebase environment variables: ${missingKeys.join(", ")}`);
   }
+} else {
+  // 환경변수가 모두 있을 때만 초기화
+  app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
 }
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// 관람실 목록 가져오기
+export const getRoomLocations = async () => {
+  if (!db) {
+    console.warn('Firebase가 초기화되지 않았습니다.');
+    return { success: false, data: [], error: 'Firebase가 초기화되지 않았습니다.' };
+  }
+  
+  try {
+    const roomsRef = collection(db, 'locations');
+    const q = query(roomsRef, orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return { 
+      success: true, 
+      data: snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })) 
+    };
+  } catch (error) {
+    console.error('관람실 목록 가져오기 실패:', error);
+    return { success: false, data: [], error: error.message };
+  }
+};
 
-export { db, collection, addDoc, serverTimestamp };
+// 관람실 추가
+export const addRoomLocation = async (roomName) => {
+  if (!db) {
+    return { success: false, error: 'Firebase가 초기화되지 않았습니다.' };
+  }
+  
+  try {
+    const roomsRef = collection(db, 'locations');
+    const docRef = await addDoc(roomsRef, {
+      name: roomName,
+      createdAt: serverTimestamp()
+    });
+    return { success: true, id: docRef.id };
+  } catch (error) {
+    console.error('관람실 추가 실패:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// 관람실 삭제
+export const deleteRoomLocation = async (roomId) => {
+  if (!db) {
+    return { success: false, error: 'Firebase가 초기화되지 않았습니다.' };
+  }
+  
+  try {
+    const roomRef = doc(db, 'locations', roomId);
+    await deleteDoc(roomRef);
+    return { success: true };
+  } catch (error) {
+    console.error('관람실 삭제 실패:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Firestore 직접 필요시에만 사용
+export { db };
+
 
 

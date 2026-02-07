@@ -1,24 +1,22 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as faceapi from 'face-api.js';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import logoImg from './assets/logo.png';
 import { useIsMobile } from './hooks/useIsMobile';
-import { RAIM_COLORS, AGE_GROUP_LABELS } from './constants';
+import { RAIM_COLORS, DEFAULT_AGE_GROUPS, AGE_GROUP_ID_TO_LABEL, GENDER_MAP, SOURCE_MAP } from './constants';
 import { convertToGroup } from './utils/ageConverter';
-import { db, collection, addDoc, serverTimestamp } from './firebase';
-import SuccessModal from './components/SuccessModal';
-import ErrorModal from './components/ErrorModal';
+import { generateUniqueId } from './utils/idGenerator';
+import { db } from './firebase';
+import SuccessModal from './components/modals/SuccessModal';
+import ErrorModal from './components/modals/ErrorModal';
 import AdminLockScreen from './components/AdminLockScreen';
 import ManualEntryCard from './components/ManualEntryCard';
 import CameraCard from './components/CameraCard';
 import VisitorList from './components/VisitorList';
 import Dashboard from './components/Dashboard';
-import ScanConfirmModal from './components/ScanConfirmModal';
+import ScanConfirmModal from './components/modals/ScanConfirmModal';
 import LanguageToggle from './components/LanguageToggle';
-
-// 변환 맵 상수화 (메모리 절약 및 성능 최적화)
-const GENDER_MAP = { 'male': '남성', 'female': '여성' };
-const SOURCE_MAP = { 'Manual': '수동', 'AI': 'AI' };
 
 function App() {
   const { t } = useTranslation();
@@ -42,10 +40,7 @@ function App() {
   const [scannedVisitors, setScannedVisitors] = useState([]);
 
   const [manualGender, setManualGender] = useState('male');
-  const [manualGroup, setManualGroup] = useState(() => {
-    // Import에서 가져온 ageGroups의 첫 번째 항목 사용
-    return '유아'; // ageGroups[0].label과 동일
-  });
+  const [manualGroup, setManualGroup] = useState('toddler');
   const [isAIMode, setIsAIMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const logoClickTimeoutRef = useRef(null);
@@ -56,7 +51,7 @@ function App() {
   useEffect(() => {
     // 과거 날짜 데이터 삭제 (정규표현식으로 최적화)
     const today = new Date();
-    const todayStr = today.toDateString();
+    const todayStr = today.toISOString().split('T')[0]; // ISO 형식: YYYY-MM-DD
     const keys = Object.keys(localStorage);
     const dataKeyRegex = /^(visitorCount|todayVisitors)_/;
     
@@ -76,7 +71,6 @@ function App() {
 
   const handleRoomSetupComplete = () => {
     setShowRoomSetup(false);
-    setIsModelLoaded(false);
   };
 
   useEffect(() => {
@@ -131,12 +125,6 @@ function App() {
     } else if (isModelLoaded && isAIMode) {
       startVideo();
     }
-    
-    return () => {
-      if (showDashboard || isAdminLocked || showRoomSetup) {
-        stopVideo();
-      }
-    };
   }, [showDashboard, isModelLoaded, isAIMode, isAdminLocked, showRoomSetup, startVideo, stopVideo]);
 
   useEffect(() => {
@@ -158,6 +146,28 @@ function App() {
       if (logoClickTimeoutRef.current) {
         clearTimeout(logoClickTimeoutRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopVideo();
+      } else if (!showDashboard && !isAdminLocked && !showRoomSetup && isModelLoaded && isAIMode) {
+        startVideo();
+      }
+    };
+
+    const handlePageHide = () => {
+      stopVideo();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, []);
 
@@ -202,16 +212,11 @@ function App() {
 
 
   const scanFaces = useCallback(async () => {
-    if (!videoRef.current || !isModelLoaded || isScanning) return;
-    
-    if (scanDebounceRef.current) {
-      clearTimeout(scanDebounceRef.current);
-    }
+    if (!videoRef.current || !isModelLoaded || isScanning || scanDebounceRef.current) return;
     
     setIsScanning(true);
 
     let canvas = null;
-    let isCancelled = false;
     
     try {
       const savedCorrection = localStorage.getItem('ageCorrection');
@@ -219,6 +224,11 @@ function App() {
 
       const maxDimension = 416;
       const video = videoRef.current;
+      if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        setErrorMessage('카메라 준비 중입니다.\n잠시 후 다시 시도해주세요.');
+        setShowErrorModal(true);
+        return;
+      }
       const scale = Math.min(maxDimension / video.videoWidth, maxDimension / video.videoHeight);
       const width = Math.floor(video.videoWidth * scale);
       const height = Math.floor(video.videoHeight * scale);
@@ -250,15 +260,12 @@ function App() {
         .withFaceLandmarks(true)
         .withAgeAndGender();
 
-      // 컴포넌트가 언마운트되었는지 확인
-      if (isCancelled) return;
-
       if (detections.length === 0) {
         setErrorMessage('얼굴을 찾을 수 없습니다.\n카메라 각도와 조명을 확인해주세요.');
         setShowErrorModal(true);
       } else {
         const newVisitors = detections.map((d) => ({
-          id: Date.now() + Math.random(), // 고유 ID 생성 개선
+          id: generateUniqueId(),
           ageGroup: convertToGroup(d.age, ageCorrection),
           gender: d.gender,
           source: 'AI'
@@ -269,30 +276,41 @@ function App() {
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
-      if (isCancelled) return;
       console.error(error);
       setErrorMessage('스캔 실패.\n다시 시도해주세요.');
       setShowErrorModal(true);
     } finally {
-      if (!isCancelled) {
-        scanDebounceRef.current = setTimeout(() => {
-          setIsScanning(false);
-        }, 300);
-      }
+      setIsScanning(false);
+      // 0.3초 디바운스 (연속 스캔 방지)
+      scanDebounceRef.current = setTimeout(() => {
+        scanDebounceRef.current = null;
+      }, 300);
     }
-    
-    // Cleanup 함수
-    return () => {
-      isCancelled = true;
-    };
   }, [isModelLoaded, isScanning]);
+
+  const clearScanDebounce = useCallback(() => {
+    if (scanDebounceRef.current) {
+      clearTimeout(scanDebounceRef.current);
+      scanDebounceRef.current = null;
+    }
+  }, []);
 
   const handleScanConfirm = async () => {
     if (scannedVisitors.length === 0) return;
-    
+    await submitVisitors(scannedVisitors, true);
+    setIsScanning(false);
+  };
+
+  const submitVisitors = async (visitorsToSubmit, isScanConfirm = false) => {
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
       setErrorMessage('관람실이 설정되지 않았습니다.\n관리자 대시보드에서 설정해주세요.');
+      setShowErrorModal(true);
+      return;
+    }
+
+    if (!db) {
+      setErrorMessage('Firebase가 설정되지 않았습니다.\n관리자에게 문의하세요.');
       setShowErrorModal(true);
       return;
     }
@@ -306,43 +324,57 @@ function App() {
     if (isSending) return;
     setIsSending(true);
     
-    const today = new Date().toDateString();
+    const today = new Date().toISOString().split('T')[0]; // ISO 형식: YYYY-MM-DD
     const savedCount = localStorage.getItem(`visitorCount_${today}`);
     const previousCount = savedCount ? parseInt(savedCount, 10) : 0;
     const todayDataKey = `todayVisitors_${today}`;
     const previousVisitors = localStorage.getItem(todayDataKey);
     
     try {
-      const formattedVisitors = scannedVisitors.map(visitor => ({
-        ...visitor,
-        gender: visitor.gender === 'male' ? '남성' : '여성',
-        source: 'AI',
-        ageGroup: AGE_GROUP_LABELS[visitor.ageGroup] || visitor.ageGroup
+      // Firebase에 저장 (한글로 변환)
+      const visitorsWithTimestamp = visitorsToSubmit.map(visitor => ({
+        gender: GENDER_MAP[visitor.gender] || visitor.gender,
+        ageGroup: AGE_GROUP_ID_TO_LABEL[visitor.ageGroup] || visitor.ageGroup,
+        ...(visitor.source && { source: SOURCE_MAP[visitor.source] || visitor.source }),
+        location: roomLocation,
+        timestamp: serverTimestamp()
       }));
       
       await Promise.all(
-        formattedVisitors.map(visitor =>
-          addDoc(collection(db, "visitors"), {
-            ...visitor,
-            location: roomLocation,
-            timestamp: serverTimestamp()
-          })
+        visitorsWithTimestamp.map(visitor =>
+          addDoc(collection(db, "visitors"), visitor)
         )
       );
       
-      const totalCount = previousCount + scannedVisitors.length;
+      const totalCount = previousCount + visitorsToSubmit.length;
       localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
       
-      const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
-      const visitorsWithRoom = scannedVisitors.map(v => ({ ...v, location: roomLocation }));
+      let existingVisitors = [];
+      if (previousVisitors) {
+        try {
+          const parsed = JSON.parse(previousVisitors);
+          existingVisitors = Array.isArray(parsed) ? parsed : [];
+        } catch (parseError) {
+          console.warn('오늘 방문객 데이터 파싱 실패:', parseError);
+          existingVisitors = [];
+        }
+      }
+      const visitorsWithRoom = visitorsToSubmit.map(v => ({ ...v, location: roomLocation }));
       existingVisitors.push(...visitorsWithRoom);
       localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
       
-      setLastCount(scannedVisitors.length);
+      setLastCount(visitorsToSubmit.length);
       setShowModal(true);
-      setShowScanConfirm(false);
-      setScannedVisitors([]);
-      setIsAIMode(true);
+      
+      // 상태 정리 (배칭 최소화)
+      if (isScanConfirm) {
+        setShowScanConfirm(false);
+        setScannedVisitors([]);
+        setIsAIMode(true);  // AI 모드로 복구
+      } else {
+        setVisitors([]);
+        setIsAIMode(true);
+      }
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
       
@@ -359,19 +391,26 @@ function App() {
       setShowErrorModal(true);
     } finally {
       setIsSending(false);
+      // 스캔 모드에서는 즉시 스캔 가능 상태
+      if (isScanConfirm) {
+        clearScanDebounce();
+      }
     }
   };
 
   const handleScanEdit = () => {
     setVisitors(prev => [...prev, ...scannedVisitors]);
-    setShowScanConfirm(false);
-    setIsAIMode(false);
     setScannedVisitors([]);
+    setShowScanConfirm(false);
+    stopVideo();
+    setIsAIMode(false);  // 수동 모드로 전환 (편집 용도)
   };
 
   const handleScanCancel = () => {
+    clearScanDebounce();
     setShowScanConfirm(false);
     setScannedVisitors([]);
+    setIsScanning(false);
   };
 
   const handleToggleMode = () => {
@@ -384,9 +423,14 @@ function App() {
     setIsAIMode((prev) => !prev);
   };
 
-  const addManualVisitor = useCallback(() => {
+  const addManualVisitor = useCallback((visitorOverride) => {
+    if (visitorOverride) {
+      setVisitors(prev => [...prev, visitorOverride]);
+      return;
+    }
+
     const newVisitor = {
-      id: Date.now() + Math.random(),
+      id: generateUniqueId(),
       ageGroup: manualGroup,
       gender: manualGender,
       source: 'Manual'
@@ -398,83 +442,13 @@ function App() {
     setVisitors(prev => prev.filter(v => v.id !== id));
   };
 
-  const formatVisitorData = (visitors) => {
-    return visitors.map(visitor => ({
-      ...visitor,
-      gender: GENDER_MAP[visitor.gender] || visitor.gender,
-      source: SOURCE_MAP[visitor.source] || visitor.source,
-      ageGroup: AGE_GROUP_LABELS[visitor.ageGroup] || visitor.ageGroup
-    }));
+  const resetVisitors = () => {
+    setVisitors([]);
   };
 
   const submitData = async () => {
     if (visitors.length === 0) return;
-    
-    const roomLocation = localStorage.getItem('room_location');
-    if (!roomLocation) {
-      setErrorMessage('관람실이 설정되지 않았습니다.\n관리자 대시보드에서 설정해주세요.');
-      setShowErrorModal(true);
-      return;
-    }
-    
-    if (!navigator.onLine) {
-      setErrorMessage('인터넷 연결이 없습니다.\n네트워크 연결을 확인해주세요.');
-      setShowErrorModal(true);
-      return;
-    }
-    
-    if (isSending) return;
-    setIsSending(true);
-    const currentCount = visitors.length;
-    
-    const today = new Date().toDateString();
-    const savedCount = localStorage.getItem(`visitorCount_${today}`);
-    const previousCount = savedCount ? parseInt(savedCount, 10) : 0;
-    const todayDataKey = `todayVisitors_${today}`;
-    const previousVisitors = localStorage.getItem(todayDataKey);
-    
-    try {
-      const formattedVisitors = formatVisitorData(visitors);
-      
-      await Promise.all(
-        formattedVisitors.map(visitor =>
-          addDoc(collection(db, "visitors"), {
-            ...visitor,
-            location: roomLocation,
-            timestamp: serverTimestamp()
-          })
-        )
-      );
-      
-      const totalCount = previousCount + currentCount;
-      localStorage.setItem(`visitorCount_${today}`, totalCount.toString());
-      
-      const existingVisitors = previousVisitors ? JSON.parse(previousVisitors) : [];
-      const visitorsWithRoom = visitors.map(v => ({ ...v, location: roomLocation }));
-      existingVisitors.push(...visitorsWithRoom);
-      localStorage.setItem(todayDataKey, JSON.stringify(existingVisitors));
-      
-      setLastCount(currentCount);
-      setShowModal(true);
-      setVisitors([]);
-      setIsAIMode(true);
-    } catch (error) {
-      console.error("Firebase 전송 실패:", error);
-      
-      let errorMsg = 'Firebase 전송 실패';
-      if (error.code === 'permission-denied') {
-        errorMsg = '권한이 없습니다.\n관리자에게 문의하세요.';
-      } else if (error.code === 'unavailable' || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
-        errorMsg = '서버 연결에 실패했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.';
-      } else {
-        errorMsg = '데이터 전송에 실패했습니다.\n' + (error.message || '알 수 없는 오류');
-      }
-      
-      setErrorMessage(errorMsg);
-      setShowErrorModal(true);
-    } finally {
-      setIsSending(false);
-    }
+    await submitVisitors(visitors, false);
   };
 
   if (isAdminLocked) {
@@ -497,10 +471,12 @@ function App() {
             handleScanConfirm();
           } else if (visitors.length > 0) {
             submitData();
+          } else if (isAIMode) {
+            scanFaces();
           }
         }}
         message={errorMessage}
-        showRetry={scannedVisitors.length > 0 || visitors.length > 0}
+        showRetry={scannedVisitors.length > 0 || visitors.length > 0 || isAIMode}
       />
       <ScanConfirmModal 
         isOpen={showScanConfirm}
@@ -538,6 +514,7 @@ function App() {
               setManualGender={setManualGender}
               manualGroup={manualGroup}
               setManualGroup={setManualGroup}
+              ageGroups={DEFAULT_AGE_GROUPS}
               onAdd={addManualVisitor}
               style={{ width: '100%' }}
             />
@@ -549,7 +526,7 @@ function App() {
             visitors={visitors}
             onRemove={removeVisitor}
             onAdd={addManualVisitor}
-            onReset={() => setVisitors([])}
+            onReset={resetVisitors}
           />
         </div>
 
@@ -658,14 +635,14 @@ const getStyles = (device) => {
       padding: pick({ mobile: '14px', tabletA9: '19px', desktop: '20px' }),
       fontSize: pick({ mobile: '13px', tabletA9: '20px', desktop: '21px' }),
       fontWeight: '800',
-      backgroundColor: '#DC2626',
+      background: `linear-gradient(135deg, ${RAIM_COLORS.TEAL}, ${RAIM_COLORS.SKY})`,
       color: 'white',
       border: 'none',
       borderRadius: radius,
       cursor: 'pointer',
       transition: 'all 0.3s',
       flex: 1,
-      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+      boxShadow: '0 4px 12px rgba(0, 191, 223, 0.25)',
       minHeight: pick({ mobile: '52px', tabletA9: '60px', desktop: '64px' })
     },
     submitButton: { 

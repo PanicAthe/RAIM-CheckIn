@@ -1,7 +1,7 @@
 import { X, Check, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { RAIM_COLORS } from '../constants';
+import { useIsMobile } from '../../hooks/useIsMobile';
+import { RAIM_COLORS, normalizeAgeGroupId } from '../../constants';
 
 const getStyles = (device) => {
   const pick = (map) => map[device] ?? map.desktop;
@@ -183,27 +183,6 @@ export default function ScanConfirmModal({
   const { device } = useIsMobile();
   const styles = getStyles(device);
 
-  // 한글 연령대를 번역 키로 매핑
-  const getAgeGroupKey = (ageGroup) => {
-    const mapping = {
-      '유아': 'infant',
-      '유아(0~6세)': 'infant',
-      '어린이': 'child',
-      '어린이(7~12세)': 'child',
-      '청소년': 'teen',
-      '청소년(13~19세)': 'teen',
-      '청년': 'youth',
-      '청년(20~39세)': 'youth',
-      '중년': 'middleAge',
-      '중년(40~64세)': 'middleAge',
-      '노년': 'senior',
-      '노년(65세 이상)': 'senior',
-      '영유아': 'infant',
-      '장년': 'senior'
-    };
-    return mapping[ageGroup] || 'youth';
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -234,7 +213,7 @@ export default function ScanConfirmModal({
                 {visitor.gender === 'male' ? t('common.male').charAt(0) : t('common.female').charAt(0)}
               </div>
               <div style={styles.visitorInfo}>
-                <div style={styles.visitorAgeGroup}>{t(`ageGroups.${getAgeGroupKey(visitor.ageGroup)}`)}</div>
+                <div style={styles.visitorAgeGroup}>{t(`ageGroups.${visitor.ageGroup}`)}</div>
                 <div style={styles.visitorBadges}>
                   <span style={{...styles.badge, ...styles.badgeGender}}>
                     {visitor.gender === 'male' ? t('common.male') : t('common.female')}
@@ -254,7 +233,7 @@ export default function ScanConfirmModal({
             onClick={onEdit}
           >
             <AlertCircle size={22} />
-            {t('scanConfirm.cancelButton')}
+            {t('scanConfirm.editButton')}
           </button>
           <button 
             style={styles.confirmButton}

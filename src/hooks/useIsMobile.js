@@ -6,7 +6,7 @@ const getInitialViewport = () => {
 };
 
 export function useIsMobile() {
-  const [viewport, setViewport] = useState(getInitialViewport);
+  const [viewport, setViewport] = useState(() => getInitialViewport());
 
   useLayoutEffect(() => {
     const updateSize = () => {

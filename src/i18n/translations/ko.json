@@ -7,6 +7,7 @@
     "cancel": "취소",
     "close": "닫기",
     "retry": "재시도",
+    "noData": "데이터가 없습니다",
     "save": "저장",
     "complete": "완료",
     "sending": "전송 중...",
@@ -16,8 +17,8 @@
     "peopleCount": "{{count}}명"
   },
   "ageGroups": {
-    "infant": "유아",
-    "infantSub": "0~6세",
+    "toddler": "유아",
+    "toddlerSub": "0~6세",
     "child": "어린이",
     "childSub": "7~12세",
     "teen": "청소년",
@@ -52,7 +53,8 @@
     "detected": "{{count}}명 인식됨",
     "editInfo": "정보가 올바르지 않다면, 수정할 수 있습니다",
     "confirmButton": "확인",
-    "cancelButton": "수정"
+    "editButton": "수정",
+    "cancelButton": "취소"
   },
   "successModal": {
     "title": "등록 완료!",

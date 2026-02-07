@@ -7,6 +7,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "retry": "Retry",
+    "noData": "No data",
     "save": "Save",
     "complete": "Complete",
     "sending": "Sending...",
@@ -16,8 +17,8 @@
     "peopleCount": "{{count}}"
   },
   "ageGroups": {
-    "infant": "Toddler",
-    "infantSub": "0~6 years",
+    "toddler": "Toddler",
+    "toddlerSub": "0~6 years",
     "child": "Child",
     "childSub": "7~12 years",
     "teen": "Teen",
@@ -52,7 +53,8 @@
     "detected": "{{count}} detected",
     "editInfo": "If the information is incorrect, you can edit it",
     "confirmButton": "Confirm",
-    "cancelButton": "Edit"
+    "editButton": "Edit",
+    "cancelButton": "Cancel"
   },
   "successModal": {
     "title": "Registration Complete!",

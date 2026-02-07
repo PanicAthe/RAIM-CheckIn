@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { LockKeyhole, KeyRound, MapPin, ChevronDown } from 'lucide-react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { ADMIN_PIN, RAIM_COLORS, roomLocations } from '../constants';
+import { ADMIN_PIN, RAIM_COLORS, ROOM_CACHE_KEY } from '../constants';
 import logoImg from '../assets/logo.png';
+import { getRoomLocations } from '../firebase';
 
 const getLockStyles = (device) => {
   const pick = (map) => map[device] ?? map.desktop;
@@ -104,6 +105,8 @@ export default function AdminLockScreen({ onUnlock }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState("");
+  const [roomItems, setRoomItems] = useState([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const { device } = useIsMobile();
   const styles = getLockStyles(device);
 
@@ -112,18 +115,51 @@ export default function AdminLockScreen({ onUnlock }) {
     if (savedRoom) {
       setSelectedRoom(savedRoom);
     }
+
+    const cachedRooms = localStorage.getItem(ROOM_CACHE_KEY);
+    if (cachedRooms) {
+      try {
+        const parsed = JSON.parse(cachedRooms);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRoomItems(parsed);
+        } else {
+          setRoomItems([]);
+        }
+      } catch (error) {
+        console.error('관람실 캐시 파싱 실패:', error);
+        setRoomItems([]);
+      }
+    } else {
+      setRoomItems([]);
+    }
+
+    const loadRooms = async () => {
+      setIsLoadingRooms(true);
+      try {
+        const result = await getRoomLocations();
+        if (result.success && result.data.length > 0) {
+          setRoomItems(result.data);
+          localStorage.setItem(ROOM_CACHE_KEY, JSON.stringify(result.data));
+        }
+      } catch (error) {
+        console.error('관람실 로드 실패:', error);
+      } finally {
+        setIsLoadingRooms(false);
+      }
+    };
+
+    loadRooms();
   }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    if (!selectedRoom) {
-      alert("관람실을 선택해주세요.");
-      return;
-    }
-    
+
     if (pin === ADMIN_PIN) {
-      localStorage.setItem('room_location', selectedRoom);
+      if (selectedRoom) {
+        localStorage.setItem('room_location', selectedRoom);
+      } else {
+        localStorage.removeItem('room_location');
+      }
       onUnlock();
     } else {
       setError(true);
@@ -145,12 +181,15 @@ export default function AdminLockScreen({ onUnlock }) {
             <MapPin size={24} color={RAIM_COLORS.MUTED} style={{position:'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', zIndex: 1}} />
             <select 
               value={selectedRoom}
-              onChange={(e) => setSelectedRoom(e.target.value)}
+              onChange={(e) => {
+                setSelectedRoom(e.target.value);
+              }}
               style={styles.select}
             >
               <option value="">관람실 선택</option>
-              {roomLocations.map(room => (
-                <option key={room} value={room}>{room}</option>
+              {isLoadingRooms && <option value="" disabled>관람실 불러오는 중...</option>}
+              {roomItems.map((room) => (
+                <option key={room.id || room.name} value={room.name}>{room.name}</option>
               ))}
             </select>
             <ChevronDown 

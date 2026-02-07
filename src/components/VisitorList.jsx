@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { ClipboardList, User, X, Plus, Minus, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { RAIM_COLORS } from '../constants';
+import { RAIM_COLORS, AGE_GROUP_LABEL_TO_ID, normalizeAgeGroupId } from '../constants';
+import { generateUniqueId } from '../utils/idGenerator';
 
 const getStyles = (device) => {
   const pick = (map) => map[device] ?? map.desktop;
@@ -146,27 +147,6 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
   const { device } = useIsMobile();
   const styles = getStyles(device);
 
-  // 한글 연령대를 번역 키로 매핑
-  const getAgeGroupKey = (ageGroup) => {
-    const mapping = {
-      '유아': 'infant',
-      '유아(0~6세)': 'infant',
-      '어린이': 'child',
-      '어린이(7~12세)': 'child',
-      '청소년': 'teen',
-      '청소년(13~19세)': 'teen',
-      '청년': 'youth',
-      '청년(20~39세)': 'youth',
-      '중년': 'middleAge',
-      '중년(40~64세)': 'middleAge',
-      '노년': 'senior',
-      '노년(65세 이상)': 'senior',
-      '영유아': 'infant',
-      '장년': 'senior'
-    };
-    return mapping[ageGroup] || 'youth';
-  };
-
   // 방문객을 그룹화하여 수량 계산 (메모이제이션으로 성능 최적화)
   const groupedVisitors = useMemo(() => {
     return visitors.reduce((acc, visitor) => {
@@ -190,7 +170,7 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
       groupedVisitor.ids.forEach(id => onRemove(id));
     } else if (delta > 0) {
       const newVisitor = {
-        id: Date.now() + Math.random(),
+        id: generateUniqueId(),
         ageGroup: groupedVisitor.ageGroup,
         gender: groupedVisitor.gender,
         source: groupedVisitor.source
@@ -229,8 +209,8 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
           </div>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {Object.values(groupedVisitors).map((groupedVisitor) => (
-              <li key={groupedVisitor.ageGroup + groupedVisitor.gender + groupedVisitor.source} style={styles.listItem}>
+            {Object.entries(groupedVisitors).map(([key, groupedVisitor]) => (
+              <li key={key} style={styles.listItem}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
                   <div style={styles.avatar}>
                     <User size={28} strokeWidth={2.5} />
@@ -238,7 +218,7 @@ export default function VisitorList({ visitors, onRemove, onAdd, onReset }) {
                   
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={styles.listItemTitle}>
-                      {t(`ageGroups.${getAgeGroupKey(groupedVisitor.ageGroup)}`)}
+                      {t(`ageGroups.${groupedVisitor.ageGroup}`)}
                       {groupedVisitor.count > 1 && (
                         <span style={{ 
                           fontSize: device === 'mobile' ? '12px' : device === 'tabletA9' ? '18px' : '20px', 
