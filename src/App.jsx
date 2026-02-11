@@ -16,6 +16,7 @@ import CameraCard from './components/CameraCard';
 import VisitorList from './components/VisitorList';
 import Dashboard from './components/Dashboard';
 import ScanConfirmModal from './components/modals/ScanConfirmModal';
+import SubmitConfirmModal from './components/modals/SubmitConfirmModal';
 import LanguageToggle from './components/LanguageToggle';
 
 function App() {
@@ -37,11 +38,12 @@ function App() {
   const [lastCount, setLastCount] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showScanConfirm, setShowScanConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [scannedVisitors, setScannedVisitors] = useState([]);
 
   const [manualGender, setManualGender] = useState('male');
   const [manualGroup, setManualGroup] = useState('toddler');
-  const [isAIMode, setIsAIMode] = useState(true);
+  const [isAIMode, setIsAIMode] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const logoClickTimeoutRef = useRef(null);
 
@@ -393,10 +395,10 @@ function App() {
       if (isScanConfirm) {
         setShowScanConfirm(false);
         setScannedVisitors([]);
-        setIsAIMode(true);  // AI 모드로 복구
+        setIsAIMode(false);  // 수동 모드로 복구
       } else {
         setVisitors([]);
-        setIsAIMode(true);
+        setIsAIMode(false);
       }
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
@@ -470,6 +472,11 @@ function App() {
 
   const submitData = async () => {
     if (visitors.length === 0) return;
+    setShowSubmitConfirm(true);
+  };
+
+  const handleSubmitConfirm = async () => {
+    setShowSubmitConfirm(false);
     await submitVisitors(visitors, false);
   };
 
@@ -506,6 +513,13 @@ function App() {
         scannedVisitors={scannedVisitors}
         onConfirm={handleScanConfirm}
         onEdit={handleScanEdit}
+      />
+      <SubmitConfirmModal
+        isOpen={showSubmitConfirm}
+        onClose={() => setShowSubmitConfirm(false)}
+        onConfirm={handleSubmitConfirm}
+        count={visitors.length}
+        visitors={visitors}
       />
       
       <div style={styles.container}>
@@ -554,6 +568,13 @@ function App() {
 
         <div style={styles.buttonRow}>
           <button 
+            onClick={handleToggleMode}
+            style={styles.modeSwitchButton}
+          >
+            {isAIMode ? (t('dashboard.settings.manualMode') || '수동 입력') : (t('dashboard.settings.aiMode') || 'AI 인식')}
+          </button>
+
+          <button 
             onClick={submitData}
             disabled={isSending || visitors.length === 0}
             style={{ 
@@ -562,13 +583,6 @@ function App() {
               flex: 2
             }}>
             {isSending ? t('common.sending') : `${t('common.complete')} (${t('common.peopleCount', { count: visitors.length })})`}
-          </button>
-          
-          <button 
-            onClick={handleToggleMode}
-            style={styles.modeSwitchButton}
-          >
-            {isAIMode ? (t('dashboard.settings.manualMode') || '수동 입력') : (t('dashboard.settings.aiMode') || 'AI 인식')}
           </button>
         </div>
       </div>
@@ -608,7 +622,10 @@ const getStyles = (device) => {
       boxShadow: '0 14px 36px rgba(0, 68, 139, 0.08)', 
       width: '100%', 
       boxSizing: 'border-box', 
-      overflow: 'hidden' 
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 0
     }, 
     header: {
       display: 'grid',
@@ -636,14 +653,15 @@ const getStyles = (device) => {
       display: 'flex', 
       flexDirection: 'row', 
       gap: pick({ mobile: '8px', tabletA9: '14px', desktop: '18px' }), 
-      marginBottom: pick({ mobile: '10px', tabletA9: '14px', desktop: '16px' }),
-      height: pick({ mobile: '300px', tabletA9: '600px', desktop: '720px' }) 
+      marginBottom: 0,
+      height: pick({ mobile: '220px', tabletA9: '600px', desktop: '720px' }) 
     },
     bottomRow: { 
       display: 'flex', 
       flexDirection: 'column', 
-      flex: 0.8,
-      minHeight: pick({ mobile: '200px', tabletA9: '280px', desktop: '300px' })
+      flex: 1,
+      marginTop: 0,
+      minHeight: pick({ mobile: '180px', tabletA9: '350px', desktop: '440px' })
     },
     buttonRow: {
       display: 'flex',

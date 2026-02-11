@@ -14,7 +14,7 @@ const getStyles = (device) => {
       border: `1px solid ${RAIM_COLORS.BG}`, borderRadius: radius, 
       padding: pick({ mobile: '10px', tabletA9: '15px', desktop: '16px' }), background: 'linear-gradient(180deg, #FFFFFF 0%, #F7FBFF 100%)', 
       display: 'flex', flexDirection: 'column', 
-      height: pick({ mobile: '180px', tabletA9: '240px', desktop: '260px' }),
+      height: pick({ mobile: '160px', tabletA9: '340px', desktop: '380px' }),
       boxShadow: '0 12px 28px rgba(0, 0, 0, 0.08)'
     },
     cardHeaderRow: { 

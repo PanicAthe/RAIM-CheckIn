@@ -56,6 +56,9 @@
     "editButton": "수정",
     "cancelButton": "취소"
   },
+  "submitConfirm": {
+    "message": "{{count}}명을 등록하시겠습니까?"
+  },
   "successModal": {
     "title": "등록 완료!",
     "message": "총 {{count}}명 등록되었습니다.",

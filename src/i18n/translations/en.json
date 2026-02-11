@@ -56,6 +56,9 @@
     "editButton": "Edit",
     "cancelButton": "Cancel"
   },
+  "submitConfirm": {
+    "message": "Register {{count}} visitor(s)?"
+  },
   "successModal": {
     "title": "Registration Complete!",
     "message": "Total {{count}} visitor(s) registered.",
