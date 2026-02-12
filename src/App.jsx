@@ -49,14 +49,15 @@ function App() {
   const styles = useMemo(() => getStyles(device), [device]);
 
   useEffect(() => {
-    // 과거 날짜 데이터 삭제 (정규표현식으로 최적화)
+    // 과거 날짜 데이터 삭제
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0]; // ISO 형식: YYYY-MM-DD
     const keys = Object.keys(localStorage);
-    const dataKeyRegex = /^(visitorCount|todayVisitors)_/;
+    // visitorCount_날짜, todayVisitors_날짜 형식만 필터링
+    const dataKeyRegex = /^(visitorCount|todayVisitors)_\d{4}-\d{2}-\d{2}$/;
     
     keys.filter(key => dataKeyRegex.test(key)).forEach(key => {
-      const dateStr = key.split('_').slice(1).join('_');
+      const dateStr = key.substring(key.indexOf('_') + 1);
       
       if (dateStr !== todayStr) {
         localStorage.removeItem(key);

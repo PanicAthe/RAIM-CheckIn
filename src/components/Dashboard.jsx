@@ -424,7 +424,7 @@ export default function Dashboard({ onClose, onSave }) {
 
       visitors.forEach(visitor => {
         const normalizedAgeGroup = normalizeAgeGroupId(visitor.ageGroup);
-        // 데이터는 이제 항상 영문 코드 형식으로 저장됨
+        // 로컬스토리지에는 영문(male/female)으로 저장됨
         const normalizedGender = visitor.gender === 'male' ? 'male' : visitor.gender === 'female' ? 'female' : '';
 
         // 연령대 집계

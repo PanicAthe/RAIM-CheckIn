@@ -217,7 +217,7 @@ export default function FinalConfirmModal({
   }, [visitors]);
 
   // 모든 방문객이 AI 스캔인지 확인
-  const isAIScan = visitors.some(v => v.source === 'ai') || !visitors.some(v => v.source);
+  const isAIScan = visitors.some(v => v.source === 'AI');
 
   if (!isOpen || visitors.length === 0) return null;
   
@@ -244,8 +244,8 @@ export default function FinalConfirmModal({
         </div>
 
         <div style={styles.visitorList}>
-          {groupedVisitors.map((group, idx) => (
-            <div key={idx} style={styles.visitorItem}>
+          {groupedVisitors.map((group) => (
+            <div key={`${group.gender}-${group.ageGroup}`} style={styles.visitorItem}>
               <div style={styles.visitorAvatar}>
                 {group.gender === 'male' ? t('common.male').charAt(0) : t('common.female').charAt(0)}
               </div>
