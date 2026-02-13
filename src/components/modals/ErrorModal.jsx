@@ -84,12 +84,15 @@ const getStyles = (device) => {
   };
 };
 
-export default function ErrorModal({ isOpen, onClose, onRetry, message, showRetry = true }) {
+export default function ErrorModal({ isOpen, onClose, onRetry, message, messageKey, messageParams, showRetry = true }) {
   const { t } = useTranslation();
   const { device } = useIsMobile();
   const styles = getStyles(device);
   
   if (!isOpen) return null;
+  
+  // messageKey가 있으면 번역, 없으면 message 그대로 사용
+  const displayMessage = messageKey ? t(messageKey, messageParams) : (message || t('errorModal.defaultMessage'));
   
   return (
     <div style={styles.overlay}>
@@ -99,7 +102,7 @@ export default function ErrorModal({ isOpen, onClose, onRetry, message, showRetr
         </div>
         <h2 style={styles.title}>{t('errorModal.title')}</h2>
         <p style={styles.message}>
-          {message || t('errorModal.defaultMessage')}
+          {displayMessage}
         </p>
         <div style={styles.buttonRow}>
           <button onClick={onClose} style={styles.cancelButton}>

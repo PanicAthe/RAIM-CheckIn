@@ -33,7 +33,7 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState({ key: '', params: {} });
   const [lastCount, setLastCount] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showScanConfirm, setShowScanConfirm] = useState(false);
@@ -237,7 +237,7 @@ function App() {
       const maxDimension = 608;  // 416→608: 나이 정확도 향상 (약 0.5~0.8초 추가)
       const video = videoRef.current;
       if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
-        setErrorMessage(t('errorModal.cameraNotReady'));
+        setErrorMessage({ key: 'errorModal.cameraNotReady' });
         setShowErrorModal(true);
         return;
       }
@@ -273,7 +273,7 @@ function App() {
         .withAgeAndGender();
 
       if (detections.length === 0) {
-        setErrorMessage(t('errorModal.noFaceDetected'));
+        setErrorMessage({ key: 'errorModal.noFaceDetected' });
         setShowErrorModal(true);
       } else {
         // 뒷사람 필터링: 얼굴 크기가 일정 이상인 사람만 (앞쪽 사람)
@@ -295,7 +295,7 @@ function App() {
         const limitedDetections = sortedDetections.slice(0, 5);
         
         if (limitedDetections.length === 0) {
-          setErrorMessage(t('errorModal.moveCloser'));
+          setErrorMessage({ key: 'errorModal.moveCloser' });
           setShowErrorModal(true);
         } else {
           const newVisitors = limitedDetections.map((d) => ({
@@ -312,7 +312,7 @@ function App() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
       console.error(error);
-      setErrorMessage(t('errorModal.scanFailed'));
+      setErrorMessage({ key: 'errorModal.scanFailed' });
       setShowErrorModal(true);
     } finally {
       setIsScanning(false);
@@ -340,7 +340,7 @@ function App() {
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
       if (isMountedRef.current) {
-        setErrorMessage(t('errorModal.roomNotSet'));
+        setErrorMessage({ key: 'errorModal.roomNotSet' });
         setShowErrorModal(true);
       }
       return;
@@ -348,7 +348,7 @@ function App() {
 
     if (!db) {
       if (isMountedRef.current) {
-        setErrorMessage(t('errorModal.firebaseNotConfigured'));
+        setErrorMessage({ key: 'errorModal.firebaseNotConfigured' });
         setShowErrorModal(true);
       }
       return;
@@ -356,7 +356,7 @@ function App() {
     
     if (!navigator.onLine) {
       if (isMountedRef.current) {
-        setErrorMessage(t('errorModal.noInternet'));
+        setErrorMessage({ key: 'errorModal.noInternet' });
         setShowErrorModal(true);
       }
       return;
@@ -425,13 +425,13 @@ function App() {
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
       
-      let errorMsg = 'Firebase 전송 실패';
+      let errorMsg;
       if (error.code === 'permission-denied') {
-        errorMsg = t('errorModal.permissionDenied');
+        errorMsg = { key: 'errorModal.permissionDenied' };
       } else if (error.code === 'unavailable' || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
-        errorMsg = t('errorModal.serverConnectionFailed');
+        errorMsg = { key: 'errorModal.serverConnectionFailed' };
       } else {
-        errorMsg = t('errorModal.transmissionFailed', { error: error.message || t('errorModal.unknownError') });
+        errorMsg = { key: 'errorModal.transmissionFailed', params: { error: error.message || '' } };
       }
       
       if (isMountedRef.current) {
@@ -521,7 +521,8 @@ function App() {
             scanFaces();
           }
         }}
-        message={errorMessage}
+        messageKey={errorMessage.key}
+        messageParams={errorMessage.params}
         showRetry={scannedVisitors.length > 0 || visitors.length > 0 || isAIMode}
       />
       <FinalConfirmModal 
