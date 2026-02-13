@@ -33,7 +33,7 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState({ key: '', params: {} });
   const [lastCount, setLastCount] = useState(0);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showScanConfirm, setShowScanConfirm] = useState(false);
@@ -41,7 +41,7 @@ function App() {
 
   const [manualGender, setManualGender] = useState('male');
   const [manualGroup, setManualGroup] = useState('toddler');
-  const [isAIMode, setIsAIMode] = useState(false);
+  const [isAIMode, setIsAIMode] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const logoClickTimeoutRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -85,7 +85,7 @@ function App() {
   };
 
   useEffect(() => {
-    if (isAdminLocked || showRoomSetup) return;
+    if (isAdminLocked || showRoomSetup || isModelLoaded) return;
 
     const loadModels = async () => {
       const MODEL_URL = '/models';
@@ -98,15 +98,12 @@ function App() {
         
         await warmupModel();
         setIsModelLoaded(true);
-        if (!showDashboard) {
-          startVideo();
-        }
       } catch (e) {
         console.error("모델 로딩 실패:", e);
       }
     };
     loadModels();
-  }, [isAdminLocked, showRoomSetup, showDashboard]);
+  }, [isAdminLocked, showRoomSetup, isModelLoaded]);
 
   const startVideo = useCallback(() => {
     navigator.mediaDevices.getUserMedia({ 
@@ -240,7 +237,7 @@ function App() {
       const maxDimension = 608;  // 416→608: 나이 정확도 향상 (약 0.5~0.8초 추가)
       const video = videoRef.current;
       if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
-        setErrorMessage('카메라 준비 중입니다.\n잠시 후 다시 시도해주세요.');
+        setErrorMessage({ key: 'errorModal.cameraNotReady' });
         setShowErrorModal(true);
         return;
       }
@@ -276,7 +273,7 @@ function App() {
         .withAgeAndGender();
 
       if (detections.length === 0) {
-        setErrorMessage('얼굴을 찾을 수 없습니다.\n카메라 각도와 조명을 확인해주세요.');
+        setErrorMessage({ key: 'errorModal.noFaceDetected' });
         setShowErrorModal(true);
       } else {
         // 뒷사람 필터링: 얼굴 크기가 일정 이상인 사람만 (앞쪽 사람)
@@ -298,7 +295,7 @@ function App() {
         const limitedDetections = sortedDetections.slice(0, 5);
         
         if (limitedDetections.length === 0) {
-          setErrorMessage('카메라에 더 가까이 오시거나\n정면을 바라봐 주세요.');
+          setErrorMessage({ key: 'errorModal.moveCloser' });
           setShowErrorModal(true);
         } else {
           const newVisitors = limitedDetections.map((d) => ({
@@ -315,7 +312,7 @@ function App() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     } catch (error) {
       console.error(error);
-      setErrorMessage('스캔 실패.\n다시 시도해주세요.');
+      setErrorMessage({ key: 'errorModal.scanFailed' });
       setShowErrorModal(true);
     } finally {
       setIsScanning(false);
@@ -343,7 +340,7 @@ function App() {
     const roomLocation = localStorage.getItem('room_location');
     if (!roomLocation) {
       if (isMountedRef.current) {
-        setErrorMessage('관람실이 설정되지 않았습니다.\n관리자 대시보드에서 설정해주세요.');
+        setErrorMessage({ key: 'errorModal.roomNotSet' });
         setShowErrorModal(true);
       }
       return;
@@ -351,7 +348,7 @@ function App() {
 
     if (!db) {
       if (isMountedRef.current) {
-        setErrorMessage('Firebase가 설정되지 않았습니다.\n관리자에게 문의하세요.');
+        setErrorMessage({ key: 'errorModal.firebaseNotConfigured' });
         setShowErrorModal(true);
       }
       return;
@@ -359,7 +356,7 @@ function App() {
     
     if (!navigator.onLine) {
       if (isMountedRef.current) {
-        setErrorMessage('인터넷 연결이 없습니다.\n네트워크 연결을 확인해주세요.');
+        setErrorMessage({ key: 'errorModal.noInternet' });
         setShowErrorModal(true);
       }
       return;
@@ -418,21 +415,23 @@ function App() {
       if (isScanConfirm) {
         setShowScanConfirm(false);
         setScannedVisitors([]);
-        setIsAIMode(false);  // 수동 모드로 복구
+        setVisitors([]);  // 수동 입력 데이터도 정리
+        setIsAIMode(true);  // AI 모드로 복귀
       } else {
         setVisitors([]);
-        setIsAIMode(false);
+        setScannedVisitors([]);  // AI 스캔 데이터도 정리
+        setIsAIMode(true);  // AI 모드로 복귀
       }
     } catch (error) {
       console.error("Firebase 전송 실패:", error);
       
-      let errorMsg = 'Firebase 전송 실패';
+      let errorMsg;
       if (error.code === 'permission-denied') {
-        errorMsg = '권한이 없습니다.\n관리자에게 문의하세요.';
+        errorMsg = { key: 'errorModal.permissionDenied' };
       } else if (error.code === 'unavailable' || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
-        errorMsg = '서버 연결에 실패했습니다.\n인터넷 연결을 확인하고 다시 시도해주세요.';
+        errorMsg = { key: 'errorModal.serverConnectionFailed' };
       } else {
-        errorMsg = '데이터 전송에 실패했습니다.\n' + (error.message || '알 수 없는 오류');
+        errorMsg = { key: 'errorModal.transmissionFailed', params: { error: error.message || '' } };
       }
       
       if (isMountedRef.current) {
@@ -459,10 +458,14 @@ function App() {
 
   const handleToggleMode = () => {
     if (isAIMode) {
+      // AI → 수동 모드로 전환
       stopVideo();
       setIsScanning(false);
       setShowScanConfirm(false);
       setScannedVisitors([]);
+    } else {
+      // 수동 → AI 모드로 전환
+      setVisitors([]);
     }
     setIsAIMode((prev) => !prev);
   };
@@ -518,7 +521,8 @@ function App() {
             scanFaces();
           }
         }}
-        message={errorMessage}
+        messageKey={errorMessage.key}
+        messageParams={errorMessage.params}
         showRetry={scannedVisitors.length > 0 || visitors.length > 0 || isAIMode}
       />
       <FinalConfirmModal 

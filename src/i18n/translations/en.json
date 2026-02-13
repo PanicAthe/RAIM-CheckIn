@@ -66,7 +66,18 @@
   },
   "errorModal": {
     "title": "Transmission Failed",
-    "defaultMessage": "Data transmission failed.\nPlease check your internet connection."
+    "defaultMessage": "Data transmission failed.\nPlease check your internet connection.",
+    "noFaceDetected": "No face detected.\nPlease check camera angle and lighting.",
+    "cameraNotReady": "Camera is getting ready.\nPlease try again in a moment.",
+    "moveCloser": "Please move closer to the camera\nor face forward.",
+    "scanFailed": "Scan failed.\nPlease try again.",
+    "roomNotSet": "Room is not set.\nPlease configure in the admin dashboard.",
+    "firebaseNotConfigured": "Firebase is not configured.\nPlease contact the administrator.",
+    "noInternet": "No internet connection.\nPlease check your network connection.",
+    "permissionDenied": "Permission denied.\nPlease contact the administrator.",
+    "serverConnectionFailed": "Server connection failed.\nPlease check your internet connection and try again.",
+    "transmissionFailed": "Data transmission failed.\n{{error}}",
+    "unknownError": "Unknown error"
   },
   "dashboard": {
     "title": "Admin Dashboard",
